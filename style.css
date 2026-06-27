@@ -6,8 +6,6 @@ body {
   color: #1a1a1a;
 }
 
-#app { display: flex; flex-direction: column; }
-
 /* ── Screens ── */
 .screen { display: none; }
 .screen.show { display: block; }
@@ -70,10 +68,8 @@ body {
   font-size: 14px; font-weight: 600; cursor: pointer; color: #888;
 }
 .ttab.active-c, .ttab.active-d { background: #FFC300; color: #1a1a1a; }
-
 .auth-body h2 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
 .auth-sub { color: #666; font-size: 14px; margin-bottom: 20px; }
-
 .input-group { margin-bottom: 16px; }
 .input-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
 .input-group input {
@@ -82,16 +78,10 @@ body {
   font-size: 15px; outline: none; background: #fff;
 }
 .input-group input:focus { border-color: #FFC300; }
-
 .price-box {
   background: #fff9e6; border: 1.5px solid #FFC300;
   border-radius: 10px; padding: 12px 14px;
   font-size: 14px; margin-bottom: 16px; color: #555;
-}
-.notice-box {
-  background: #f0f8ff; border: 1.5px solid #b3d9ff;
-  border-radius: 10px; padding: 12px 14px;
-  font-size: 14px; margin-bottom: 16px;
 }
 .auth-or {
   display: flex; align-items: center; gap: 12px;
@@ -101,7 +91,7 @@ body {
 .switch-link { font-size: 13px; color: #888; text-align: center; margin-top: 20px; }
 .switch-link a { color: #d4a000; text-decoration: none; font-weight: 600; }
 
-/* ── Success / pending screens ── */
+/* ── Success screens ── */
 .success-body {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; min-height: 100vh;
@@ -113,14 +103,14 @@ body {
 
 /* ── Main app ── */
 .app-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px;
-  background: #FFC300;
-  box-shadow: 0 2px 8px rgba(0,0,0,.08);
   position: fixed;
   top: 0; left: 0; right: 0;
-  z-index: 1000;
   height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px;
+  background: #FFC300;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  z-index: 1000;
 }
 .app-logo { font-size: 18px; font-weight: 800; }
 .app-header-right { display: flex; align-items: center; gap: 10px; }
@@ -136,13 +126,14 @@ body {
 
 /* ── Driver controls ── */
 .driver-controls {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 18px; background: #fff;
-  border-bottom: 1px solid #eee;
   position: fixed;
   top: 52px; left: 0; right: 0;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
   z-index: 999;
-  height: 56px;
 }
 .status-dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
@@ -161,20 +152,17 @@ body {
   z-index: 1;
 }
 
-/* shift map down if driver panel is visible */
-.driver-map-offset #map {
-  top: 108px;
-}
-
-/* ── Customer info bar ── */
+/* ── Info bar ── */
 .info-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 18px; background: #fff;
-  border-top: 1px solid #eee; font-size: 14px; color: #555;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  z-index: 1000;
   height: 46px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px;
+  background: #fff;
+  border-top: 1px solid #eee;
+  font-size: 14px; color: #555;
+  z-index: 1000;
 }
 
 /* ── Toast ── */
@@ -187,9 +175,3 @@ body {
   transition: opacity .3s; white-space: nowrap; z-index: 9999;
 }
 .toast.show { opacity: 1; }
-
-/* ── Leaflet van icon override ── */
-.van-marker {
-  font-size: 28px; line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
-}
