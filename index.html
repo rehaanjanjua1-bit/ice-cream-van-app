@@ -4,22 +4,67 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Scoop — Ice Cream Vans Near You</title>
-
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Google Maps -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA5eWKwKbQ7cX5XO1MlGG46OGPb7S__SOU&libraries=visualization"></script>
-
-  <!-- Stripe -->
-  <script src="https://js.stripe.com/v3/"></script>
-
-  <link rel="stylesheet" href="style.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff8f0; color: #1a1a1a; }
+    .screen { display: none; }
+    .screen.show { display: block; }
+    .splash-hero { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; text-align: center; }
+    .splash-ico { font-size: 64px; margin-bottom: 12px; }
+    .splash-title { font-size: 36px; font-weight: 800; }
+    .splash-sub { color: #666; margin: 8px 0 32px; font-size: 16px; max-width: 320px; }
+    .splash-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 340px; }
+    .splash-div { display: flex; align-items: center; gap: 12px; color: #999; font-size: 13px; margin: 4px 0; }
+    .splash-div::before, .splash-div::after { content: ''; flex: 1; height: 1px; background: #e5e5e5; }
+    .btn { padding: 14px 20px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+    .b-amber { background: #FFC300; color: #1a1a1a; }
+    .b-black { background: #1a1a1a; color: #fff; }
+    .b-outline { background: transparent; border: 1.5px solid #ddd; color: #444; }
+    .b-google { background: #fff; border: 1.5px solid #ddd; color: #1a1a1a; display: flex; align-items: center; justify-content: center; }
+    .small { padding: 8px 14px; font-size: 13px; width: auto; }
+    .auth-body { max-width: 400px; width: 100%; margin: 0 auto; padding: 32px 24px 48px; }
+    .back-btn { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 0; margin-bottom: 24px; display: block; }
+    .type-tabs { display: flex; border: 1.5px solid #e5e5e5; border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+    .ttab { flex: 1; padding: 10px; background: #fff; border: none; font-size: 14px; font-weight: 600; cursor: pointer; color: #888; }
+    .ttab.active { background: #FFC300; color: #1a1a1a; }
+    .auth-body h2 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+    .auth-sub { color: #666; font-size: 14px; margin-bottom: 20px; }
+    .input-group { margin-bottom: 16px; }
+    .input-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
+    .input-group input { width: 100%; padding: 12px 14px; border: 1.5px solid #e5e5e5; border-radius: 10px; font-size: 15px; outline: none; }
+    .input-group input:focus { border-color: #FFC300; }
+    .price-box { background: #fff9e6; border: 1.5px solid #FFC300; border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-bottom: 16px; color: #555; }
+    .auth-or { display: flex; align-items: center; gap: 12px; color: #bbb; font-size: 13px; margin: 16px 0; }
+    .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: #eee; }
+    .switch-link { font-size: 13px; color: #888; text-align: center; margin-top: 20px; }
+    .switch-link a { color: #d4a000; text-decoration: none; font-weight: 600; }
+    .success-body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; text-align: center; max-width: 380px; margin: 0 auto; }
+    .big-icon { font-size: 64px; margin-bottom: 16px; }
+    .success-body h2 { font-size: 26px; font-weight: 800; margin-bottom: 10px; }
+    .success-body p { color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
+    /* APP LAYOUT */
+    #s-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
+    #s-app.show { display: block; }
+    .app-header { position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #FFC300; z-index: 10; }
+    .app-logo { font-size: 18px; font-weight: 800; }
+    .app-header-right { display: flex; align-items: center; gap: 10px; }
+    .app-user { font-size: 13px; font-weight: 600; }
+    .badge-driver { background: #1a1a1a; color: #FFC300; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+    .logout-btn { background: none; border: 1.5px solid rgba(0,0,0,.2); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+    .driver-controls { position: absolute; top: 52px; left: 0; right: 0; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #fff; border-bottom: 1px solid #eee; z-index: 10; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 6px 0 10px; vertical-align: middle; }
+    .status-dot.online { background: #22c55e; }
+    .status-dot.offline { background: #ccc; }
+    #map { position: absolute; left: 0; right: 0; bottom: 46px; background: #e5e5e5; }
+    .info-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #fff; border-top: 1px solid #eee; font-size: 14px; color: #555; z-index: 10; }
+    .toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .3s; white-space: nowrap; z-index: 9999; }
+    .toast.show { opacity: 1; }
+  </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- ═══════════ SPLASH ═══════════ -->
   <div id="s-splash" class="screen show">
     <div class="splash-hero">
       <span class="splash-ico">🍦</span>
@@ -34,86 +79,64 @@
     </div>
   </div>
 
-  <!-- ═══════════ SIGN UP ═══════════ -->
   <div id="s-signup" class="screen">
     <div class="auth-body">
       <button class="back-btn" onclick="showScreen('s-splash')">← Back</button>
       <div class="type-tabs">
-        <button class="ttab active-c" id="tt-c" onclick="setType('customer')">Customer</button>
+        <button class="ttab active" id="tt-c" onclick="setType('customer')">Customer</button>
         <button class="ttab" id="tt-d" onclick="setType('driver')">Van driver</button>
       </div>
-      <h2 id="su-heading">Create your account</h2>
+      <h2>Create your account</h2>
       <p id="su-sub" class="auth-sub">Free forever — find vans near you.</p>
-      <div id="driver-price-box" class="price-box" style="display:none">
-        <strong>£1.99 / month</strong> — you'll be redirected to Stripe to pay after your account is created.
-      </div>
+      <div id="driver-price-box" class="price-box" style="display:none"><strong>£1.99 / month</strong> — redirected to Stripe after signup.</div>
       <div id="van-field" class="input-group" style="display:none">
         <label>Van name</label>
         <input type="text" id="inp-van" placeholder="e.g. Dave's Ices"/>
       </div>
-      <div class="input-group">
-        <label>Email</label>
-        <input type="email" id="inp-email" placeholder="you@email.com"/>
-      </div>
-      <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="inp-pass" placeholder="Min 6 characters"/>
-      </div>
-      <button class="btn b-amber full-w" onclick="signUpEmail()">Create account</button>
+      <div class="input-group"><label>Email</label><input type="email" id="inp-email" placeholder="you@email.com"/></div>
+      <div class="input-group"><label>Password</label><input type="password" id="inp-pass" placeholder="Min 6 characters"/></div>
+      <button class="btn b-amber" onclick="signUpEmail()">Create account</button>
       <div class="auth-or"><span>or</span></div>
-      <button class="btn b-google full-w" onclick="signInGoogle()">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="vertical-align:middle;margin-right:8px"/>
-        Continue with Google
+      <button class="btn b-google" onclick="signInGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="margin-right:8px"/>Continue with Google
       </button>
       <p class="switch-link">Already have an account? <a href="#" onclick="showScreen('s-login')">Log in</a></p>
     </div>
   </div>
 
-  <!-- ═══════════ LOG IN ═══════════ -->
   <div id="s-login" class="screen">
     <div class="auth-body">
       <button class="back-btn" onclick="showScreen('s-splash')">← Back</button>
       <h2>Welcome back</h2>
-      <div class="input-group">
-        <label>Email</label>
-        <input type="email" id="inp-login-email" placeholder="you@email.com"/>
-      </div>
-      <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="inp-login-pass" placeholder="Your password"/>
-      </div>
-      <button class="btn b-amber full-w" onclick="logInEmail()">Log in</button>
+      <div class="input-group"><label>Email</label><input type="email" id="inp-login-email" placeholder="you@email.com"/></div>
+      <div class="input-group"><label>Password</label><input type="password" id="inp-login-pass" placeholder="Your password"/></div>
+      <button class="btn b-amber" onclick="logInEmail()">Log in</button>
       <div class="auth-or"><span>or</span></div>
-      <button class="btn b-google full-w" onclick="signInGoogle()">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="vertical-align:middle;margin-right:8px"/>
-        Continue with Google
+      <button class="btn b-google" onclick="signInGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="margin-right:8px"/>Continue with Google
       </button>
       <p class="switch-link">No account? <a href="#" onclick="showScreen('s-signup')">Sign up</a></p>
     </div>
   </div>
 
-  <!-- ═══════════ EMAIL CONFIRM PENDING ═══════════ -->
   <div id="s-confirm" class="screen">
     <div class="success-body">
       <div class="big-icon">📧</div>
       <h2>Check your email</h2>
-      <p>We've sent a confirmation link to <strong id="confirm-email-addr"></strong>.<br/>Click the link to activate your account, then come back and log in.</p>
-      <button class="btn b-amber" onclick="showScreen('s-login')">Go to log in</button>
+      <p>We've sent a confirmation link to <strong id="confirm-email-addr"></strong>. Click it to activate your account.</p>
+      <button class="btn b-amber" style="width:auto;padding:14px 28px" onclick="showScreen('s-login')">Go to log in</button>
     </div>
   </div>
 
-  <!-- ═══════════ STRIPE REDIRECT ═══════════ -->
   <div id="s-stripe" class="screen">
     <div class="success-body">
       <div class="big-icon">💳</div>
       <h2>One last step</h2>
       <p>Set up your £1.99/month subscription to go live on the map.</p>
-      <button class="btn b-amber" id="stripe-pay-btn" onclick="redirectToStripe()">Pay with Stripe</button>
-      <p style="font-size:12px;color:#999;margin-top:12px">Secured by Stripe. Cancel any time.</p>
+      <button class="btn b-amber" style="width:auto;padding:14px 28px" onclick="redirectToStripe()">Pay with Stripe</button>
     </div>
   </div>
 
-  <!-- ═══════════ MAIN APP ═══════════ -->
   <div id="s-app" class="screen">
     <div class="app-header">
       <div class="app-logo">🍦 Scoop</div>
@@ -123,7 +146,6 @@
         <button class="logout-btn" onclick="doLogout()">Log out</button>
       </div>
     </div>
-
     <div id="driver-panel" style="display:none">
       <div class="driver-controls">
         <div>
@@ -131,12 +153,10 @@
           <span id="live-status" class="status-dot offline"></span>
           <span id="live-label" style="font-size:13px;color:#666">Offline</span>
         </div>
-        <button class="btn b-amber" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
+        <button class="btn b-amber small" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
       </div>
     </div>
-
     <div id="map"></div>
-
     <div id="customer-panel" class="info-bar" style="display:none">
       <span id="van-count-label">Loading vans…</span>
       <button class="btn b-outline small" onclick="refreshMap()">🔄 Refresh</button>
@@ -147,5 +167,11 @@
 </div>
 
 <script src="app.js"></script>
+<script>
+  function initGoogleMap() {
+    if (typeof initMapWhenReady === 'function') initMapWhenReady();
+  }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA5eWKwKbQ7cX5XO1MlGG46OGPb7S__SOU&callback=initGoogleMap" async defer></script>
 </body>
 </html>
