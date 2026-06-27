@@ -139,7 +139,13 @@ function initMap(isDriver) {
     return;
   }
 
-  const mapEl = document.getElementById('map');
+  const mapEl = document.getElementById("map");
+  mapEl.style.position = "fixed";
+  mapEl.style.top = "52px";
+  mapEl.style.bottom = "46px";
+  mapEl.style.left = "0";
+  mapEl.style.right = "0";
+  mapEl.style.zIndex = "1";
 
   map = new google.maps.Map(mapEl, {
     center: { lat: 52.5, lng: -1.5 },
