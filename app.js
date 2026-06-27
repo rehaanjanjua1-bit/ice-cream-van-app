@@ -1,15 +1,11 @@
 // ═══════════════════════════════════════════════════════
-// SCOOP — app.js
+// SCOOP — app.js (Google Maps version)
 // ═══════════════════════════════════════════════════════
 
-// ── Config ──────────────────────────────────────────────
 const SUPABASE_URL  = 'https://wwgovmkzxrtobklxxija.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Z292bWt6eHJ0b2JrbHh4aWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTUyMjksImV4cCI6MjA5ODA3MTIyOX0.zdad6bvjSNALfZSmcC8t-N13fDZceYWdqFuNdKPsTM4';
-
-const STRIPE_PK = 'pk_test_REPLACE_WITH_YOUR_STRIPE_PUBLISHABLE_KEY';
 const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/REPLACE_WITH_YOUR_PAYMENT_LINK';
 
-// ── Init ────────────────────────────────────────────────
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let map, userSession, userRole, userVanId, isLive = false;
 let vanMarkers = {};
@@ -22,7 +18,7 @@ function showScreen(id) {
     s.style.display = 'none';
   });
   const el = document.getElementById(id);
-  el.style.display = 'flex';
+  el.style.display = 'block';
   el.classList.add('show');
 }
 
@@ -37,7 +33,6 @@ function setType(type) {
   const isDriver = type === 'driver';
   document.getElementById('van-field').style.display        = isDriver ? 'block' : 'none';
   document.getElementById('driver-price-box').style.display = isDriver ? 'block' : 'none';
-  document.getElementById('email-confirm-notice').style.display = 'block';
   document.getElementById('su-sub').textContent = isDriver
     ? 'Put your van on the map for £1.99/month.'
     : 'Free forever — find vans near you.';
@@ -57,12 +52,8 @@ async function signUpEmail() {
   if (type === 'driver' && !vanName) { toast('Please enter your van name.'); return; }
 
   const { data, error } = await sb.auth.signUp({
-    email,
-    password: pass,
-    options: {
-      data: { role: type, van_name: vanName || null },
-      emailRedirectTo: window.location.origin
-    }
+    email, password: pass,
+    options: { data: { role: type, van_name: vanName || null }, emailRedirectTo: window.location.origin }
   });
 
   if (error) { toast('Error: ' + error.message); return; }
@@ -71,12 +62,7 @@ async function signUpEmail() {
   showScreen('s-confirm');
 
   if (type === 'driver' && data.user) {
-    await sb.from('profiles').upsert({
-      id: data.user.id,
-      role: 'driver',
-      van_name: vanName,
-      subscribed: false
-    });
+    await sb.from('profiles').upsert({ id: data.user.id, role: 'driver', van_name: vanName, subscribed: false });
   }
 }
 
@@ -102,50 +88,34 @@ async function doLogout() {
   showScreen('s-splash');
 }
 
-// ── Auth state listener ──────────────────────────────────
+// ── Auth state ───────────────────────────────────────────
 sb.auth.onAuthStateChange(async (event, session) => {
   userSession = session;
-
-  if (!session) {
-    showScreen('s-splash');
-    return;
-  }
+  if (!session) { showScreen('s-splash'); return; }
 
   const user = session.user;
-
   let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
 
   if (!profile) {
-    await sb.from('profiles').insert({
-      id: user.id,
-      role: 'customer',
-      van_name: null,
-      subscribed: false
-    });
+    await sb.from('profiles').insert({ id: user.id, role: 'customer', van_name: null, subscribed: false });
     profile = { role: 'customer', van_name: null, subscribed: false };
   }
 
   userRole = profile.role;
   userVanId = user.id;
 
-  if (userRole === 'driver' && !profile.subscribed) {
-    showScreen('s-stripe');
-    return;
-  }
+  if (userRole === 'driver' && !profile.subscribed) { showScreen('s-stripe'); return; }
 
   openApp(user, profile);
 });
 
-// ── Stripe redirect ──────────────────────────────────────
 function redirectToStripe() {
-  const url = STRIPE_PAYMENT_LINK + '?client_reference_id=' + userSession.user.id;
-  window.location.href = url;
+  window.location.href = STRIPE_PAYMENT_LINK + '?client_reference_id=' + userSession.user.id;
 }
 
 // ── Main app ─────────────────────────────────────────────
 async function openApp(user, profile) {
   showScreen('s-app');
-
   const name = user.user_metadata?.full_name || user.email.split('@')[0];
   document.getElementById('app-username').textContent = name;
 
@@ -154,60 +124,52 @@ async function openApp(user, profile) {
     document.getElementById('driver-panel').style.display = 'block';
     document.getElementById('customer-panel').style.display = 'none';
     document.getElementById('van-display-name').textContent = profile.van_name || 'Your van';
-    setTimeout(() => initMap(true), 50);
   } else {
     document.getElementById('driver-panel').style.display = 'none';
     document.getElementById('customer-panel').style.display = 'flex';
-    setTimeout(() => {
-      initMap(false);
-      loadVans();
-      setInterval(loadVans, 30000);
-    }, 50);
   }
+
+  initMap(profile.role === 'driver');
 }
 
-// ── Leaflet map ──────────────────────────────────────────
+// ── Google Maps ──────────────────────────────────────────
 function initMap(isDriver) {
-  if (map) return;
-
-  // Calculate available height explicitly
-  const header = document.querySelector('.app-header');
-  const infoBar = document.getElementById('customer-panel');
-  const driverBar = document.getElementById('driver-panel');
-
-  const headerH = header ? header.offsetHeight : 52;
-  const infoH = infoBar && infoBar.style.display !== 'none' ? infoBar.offsetHeight : 0;
-  const driverH = driverBar && driverBar.style.display !== 'none' ? driverBar.offsetHeight : 0;
+  if (map) {
+    google.maps.event.trigger(map, 'resize');
+    return;
+  }
 
   const mapEl = document.getElementById('map');
-  const mapHeight = window.innerHeight - headerH - infoH - driverH;
-  mapEl.style.height = mapHeight + 'px';
 
-  map = L.map('map').setView([52.5, -1.5], 6);
+  map = new google.maps.Map(mapEl, {
+    center: { lat: 52.5, lng: -1.5 },
+    zoom: 6,
+    mapTypeId: 'roadmap',
+    disableDefaultUI: false,
+    zoomControl: true,
+    streetViewControl: false,
+    mapTypeControl: false,
+    fullscreenControl: false,
+    styles: [
+      { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+    ]
+  });
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 19
-  }).addTo(map);
-
+  // Centre on user location
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(pos => {
-      map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+      map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      map.setZoom(13);
     });
+  }
+
+  if (!isDriver) {
+    loadVans();
+    setInterval(loadVans, 30000);
   }
 }
 
-function makeVanIcon() {
-  return L.divIcon({
-    html: '<div class="van-marker">🚐</div>',
-    className: '',
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32]
-  });
-}
-
-// ── Load live vans (customer view) ───────────────────────
+// ── Load live vans ───────────────────────────────────────
 async function loadVans() {
   const { data: vans, error } = await sb
     .from('van_locations')
@@ -216,20 +178,39 @@ async function loadVans() {
 
   if (error) { console.error(error); return; }
 
-  Object.values(vanMarkers).forEach(m => m.remove());
+  // Remove old markers
+  Object.values(vanMarkers).forEach(m => m.setMap(null));
   vanMarkers = {};
 
   vans.forEach(v => {
-    const marker = L.marker([v.lat, v.lng], { icon: makeVanIcon() })
-      .addTo(map)
-      .bindPopup(`<strong>${v.profiles?.van_name || 'Ice Cream Van'}</strong><br/>Live now 🍦`);
+    const marker = new google.maps.Marker({
+      position: { lat: v.lat, lng: v.lng },
+      map,
+      title: v.profiles?.van_name || 'Ice Cream Van',
+      label: { text: '🍦', fontSize: '24px' },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 0,
+      }
+    });
+
+    const infoWindow = new google.maps.InfoWindow({
+      content: `<div style="font-family:sans-serif;padding:4px">
+        <strong>${v.profiles?.van_name || 'Ice Cream Van'}</strong><br/>
+        <span style="color:#22c55e">● Live now</span>
+      </div>`
+    });
+
+    marker.addListener('click', () => infoWindow.open(map, marker));
     vanMarkers[v.id] = marker;
   });
 
   const label = document.getElementById('van-count-label');
-  label.textContent = vans.length === 0
-    ? 'No vans live right now — check back soon!'
-    : `${vans.length} van${vans.length > 1 ? 's' : ''} live near you 🍦`;
+  if (label) {
+    label.textContent = vans.length === 0
+      ? 'No vans live right now — check back soon!'
+      : `${vans.length} van${vans.length > 1 ? 's' : ''} live near you 🍦`;
+  }
 }
 
 function refreshMap() {
@@ -239,19 +220,11 @@ function refreshMap() {
 
 // ── Driver: go live ──────────────────────────────────────
 async function toggleLive() {
-  if (isLive) {
-    await goOffline();
-  } else {
-    await goLive();
-  }
+  if (isLive) { await goOffline(); } else { await goLive(); }
 }
 
 async function goLive() {
-  if (!navigator.geolocation) {
-    toast('Location not supported on this device.');
-    return;
-  }
-
+  if (!navigator.geolocation) { toast('Location not supported.'); return; }
   toast('Getting your location…');
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -259,14 +232,10 @@ async function goLive() {
     const lng = pos.coords.longitude;
 
     const { error } = await sb.from('van_locations').upsert({
-      id: userVanId,
-      lat,
-      lng,
-      is_live: true,
-      updated_at: new Date().toISOString()
+      id: userVanId, lat, lng, is_live: true, updated_at: new Date().toISOString()
     });
 
-    if (error) { toast('Error going live: ' + error.message); return; }
+    if (error) { toast('Error: ' + error.message); return; }
 
     isLive = true;
     updateLiveUI(true);
@@ -274,31 +243,35 @@ async function goLive() {
     locationWatchId = setInterval(async () => {
       navigator.geolocation.getCurrentPosition(async (p) => {
         await sb.from('van_locations').update({
-          lat: p.coords.latitude,
-          lng: p.coords.longitude,
-          updated_at: new Date().toISOString()
+          lat: p.coords.latitude, lng: p.coords.longitude, updated_at: new Date().toISOString()
         }).eq('id', userVanId);
+
+        if (vanMarkers[userVanId]) {
+          vanMarkers[userVanId].setPosition({ lat: p.coords.latitude, lng: p.coords.longitude });
+        }
       });
     }, 15000);
 
-    if (vanMarkers[userVanId]) vanMarkers[userVanId].remove();
-    const marker = L.marker([lat, lng], { icon: makeVanIcon() })
-      .addTo(map)
-      .bindPopup('You are live! 🍦')
-      .openPopup();
+    if (vanMarkers[userVanId]) vanMarkers[userVanId].setMap(null);
+    const marker = new google.maps.Marker({
+      position: { lat, lng },
+      map,
+      title: 'You are live!',
+      label: { text: '🚐', fontSize: '24px' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+    });
     vanMarkers[userVanId] = marker;
-    map.setView([lat, lng], 14);
+    map.setCenter({ lat, lng });
+    map.setZoom(14);
 
     toast('You\'re live! Customers can see you 🚐');
-  }, () => {
-    toast('Could not get location. Check permissions.');
-  });
+  }, () => { toast('Could not get location. Check permissions.'); });
 }
 
 async function goOffline() {
   if (locationWatchId) { clearInterval(locationWatchId); locationWatchId = null; }
   await sb.from('van_locations').update({ is_live: false }).eq('id', userVanId);
-  if (vanMarkers[userVanId]) { vanMarkers[userVanId].remove(); delete vanMarkers[userVanId]; }
+  if (vanMarkers[userVanId]) { vanMarkers[userVanId].setMap(null); delete vanMarkers[userVanId]; }
   isLive = false;
   updateLiveUI(false);
   toast('You\'re offline. See you next time! 👋');
@@ -310,5 +283,4 @@ function updateLiveUI(live) {
   document.getElementById('go-live-btn').textContent = live ? 'Go Offline 🔴' : 'Go Live 🟢';
 }
 
-// ── Init default type ────────────────────────────────────
 window._signupType = 'customer';
