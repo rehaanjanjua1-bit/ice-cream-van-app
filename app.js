@@ -179,7 +179,7 @@ function initMap(isDriver) {
 async function loadVans() {
   const { data: vans, error } = await sb
     .from('van_locations')
-    .select('*, profiles(van_name)')
+    .select('*')
     .eq('is_live', true);
 
   if (error) { console.error(error); return; }
