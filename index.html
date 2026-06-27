@@ -1,464 +1,166 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Scoop — Find Ice Cream Vans Near You</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  :root {
-    --amber: #F59E0B;
-    --amber-dark: #D97706;
-    --navy: #0F172A;
-    --navy2: #1E293B;
-    --navy3: #334155;
-    --white: #FFFFFF;
-    --grey: #94A3B8;
-    --light: #F1F5F9;
-    --green: #10B981;
-    --red: #EF4444;
-    --blue: #3B82F6;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--navy); color: var(--white); min-height: 100vh; }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Scoop — Ice Cream Vans Near You</title>
 
-  /* SCREENS */
-  .screen { display: none; min-height: 100vh; }
-  .screen.active { display: flex; flex-direction: column; }
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  /* SPLASH */
-  #s-splash { align-items: center; justify-content: center; padding: 40px 24px; text-align: center; background: linear-gradient(160deg, #0F172A 0%, #1E293B 100%); }
-  .splash-emoji { font-size: 72px; margin-bottom: 16px; }
-  .splash-title { font-size: 42px; font-weight: 800; color: var(--amber); letter-spacing: -1px; }
-  .splash-sub { font-size: 16px; color: var(--grey); margin: 8px 0 48px; }
-  .btn-block { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
-  .btn { padding: 16px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
-  .btn-amber { background: var(--amber); color: var(--navy); }
-  .btn-amber:hover { background: var(--amber-dark); }
-  .btn-outline { background: transparent; color: var(--white); border: 2px solid var(--navy3); }
-  .btn-outline:hover { border-color: var(--amber); color: var(--amber); }
-  .btn-google { background: var(--white); color: #1F2937; display: flex; align-items: center; justify-content: center; gap: 10px; }
-  .btn-google:hover { background: #F9FAFB; }
-  .btn-navy { background: var(--navy2); color: var(--white); border: 2px solid var(--navy3); }
-  .btn-navy:hover { border-color: var(--amber); }
-  .btn-green { background: var(--green); color: var(--white); }
-  .btn-blue { background: var(--blue); color: var(--white); }
-  .divider { display: flex; align-items: center; gap: 12px; color: var(--grey); font-size: 13px; width: 100%; max-width: 320px; }
-  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--navy3); }
+  <!-- Leaflet map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  /* AUTH */
-  #s-auth { align-items: center; justify-content: center; padding: 40px 24px; }
-  .auth-box { width: 100%; max-width: 360px; }
-  .auth-back { background: none; border: none; color: var(--grey); cursor: pointer; font-size: 14px; margin-bottom: 24px; display: flex; align-items: center; gap: 6px; padding: 0; }
-  .auth-back:hover { color: var(--white); }
-  .auth-title { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
-  .auth-sub { color: var(--grey); font-size: 14px; margin-bottom: 32px; }
-  .tabs { display: flex; background: var(--navy2); border-radius: 10px; padding: 4px; margin-bottom: 24px; }
-  .tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--grey); border: none; background: none; transition: all 0.15s; }
-  .tab.active { background: var(--amber); color: var(--navy); }
-  .input-group { margin-bottom: 16px; }
-  .input-group label { display: block; font-size: 13px; color: var(--grey); margin-bottom: 6px; font-weight: 500; }
-  .input-group input { width: 100%; padding: 14px 16px; background: var(--navy2); border: 2px solid var(--navy3); border-radius: 10px; color: var(--white); font-size: 15px; outline: none; transition: border 0.15s; }
-  .input-group input:focus { border-color: var(--amber); }
-  .price-tag { background: var(--navy2); border: 1px solid var(--navy3); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 14px; color: var(--grey); }
-  .price-tag strong { color: var(--amber); font-size: 18px; }
+  <!-- Stripe -->
+  <script src="https://js.stripe.com/v3/"></script>
 
-  /* SUCCESS */
-  #s-success { align-items: center; justify-content: center; padding: 40px 24px; text-align: center; }
-  .success-icon { font-size: 72px; margin-bottom: 16px; }
-  .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
-  .badge-cust { background: rgba(245,158,11,0.2); color: var(--amber); }
-  .badge-driv { background: rgba(59,130,246,0.2); color: var(--blue); }
-  .success-title { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
-  .success-sub { color: var(--grey); font-size: 15px; margin-bottom: 32px; max-width: 280px; }
-
-  /* APP */
-  #s-app { background: var(--navy); }
-  .app-header { padding: 16px 20px 0; display: flex; align-items: center; justify-content: space-between; }
-  .app-logo { font-size: 22px; font-weight: 800; color: var(--amber); }
-  .app-user { font-size: 13px; color: var(--grey); }
-  .logout-btn { background: none; border: none; color: var(--grey); cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 6px; }
-  .logout-btn:hover { color: var(--red); }
-
-  /* MAP AREA */
-  .map-area { margin: 16px; border-radius: 16px; background: var(--navy2); height: 240px; position: relative; overflow: hidden; border: 1px solid var(--navy3); }
-  .map-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
-  .map-placeholder p { color: var(--grey); font-size: 13px; }
-  .van-pin { position: absolute; font-size: 28px; cursor: pointer; transform: translate(-50%, -50%); transition: transform 0.15s; }
-  .van-pin:hover { transform: translate(-50%, -50%) scale(1.2); }
-
-  /* CARDS */
-  .section { padding: 0 16px; margin-bottom: 20px; }
-  .section-title { font-size: 13px; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-  .card { background: var(--navy2); border-radius: 14px; padding: 16px; margin-bottom: 10px; border: 1px solid var(--navy3); }
-  .card-row { display: flex; align-items: center; justify-content: space-between; }
-  .card-name { font-weight: 700; font-size: 16px; }
-  .card-sub { color: var(--grey); font-size: 13px; margin-top: 2px; }
-  .dot-live { display: inline-block; width: 8px; height: 8px; background: var(--green); border-radius: 50%; margin-right: 6px; }
-  .btn-sm { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
-
-  /* BOTTOM NAV */
-  .bottom-nav { display: flex; background: var(--navy2); border-top: 1px solid var(--navy3); padding: 8px 0 20px; position: sticky; bottom: 0; }
-  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; padding: 8px; color: var(--grey); font-size: 10px; font-weight: 600; transition: color 0.15s; }
-  .nav-btn.active { color: var(--amber); }
-  .nav-btn span:first-child { font-size: 20px; }
-
-  /* TOAST */
-  #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--navy2); color: var(--white); padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; border: 1px solid var(--navy3); opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; pointer-events: none; }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* DRIVER DASH */
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .toggle { width: 48px; height: 26px; background: var(--navy3); border-radius: 13px; cursor: pointer; position: relative; transition: background 0.2s; border: none; }
-  .toggle::after { content: ''; width: 20px; height: 20px; background: white; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform 0.2s; }
-  .toggle.on { background: var(--green); }
-  .toggle.on::after { transform: translateX(22px); }
-
-  /* LOADING */
-  #s-loading { align-items: center; justify-content: center; }
-  .loading-text { color: var(--grey); font-size: 16px; }
-  .spinner { width: 36px; height: 36px; border: 3px solid var(--navy3); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  @media (max-width: 400px) { .splash-title { font-size: 34px; } }
-</style>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
+<div id="app">
 
-<!-- LOADING -->
-<div class="screen active" id="s-loading">
-  <div class="spinner"></div>
-  <p class="loading-text">Loading Scoop…</p>
-</div>
-
-<!-- SPLASH -->
-<div class="screen" id="s-splash">
-  <div class="splash-emoji">🍦</div>
-  <div class="splash-title">Scoop</div>
-  <p class="splash-sub">Find ice cream vans live near you</p>
-  <div class="btn-block">
-    <button class="btn btn-amber" onclick="showAuth('customer')">Find ice cream near me</button>
-    <button class="btn btn-outline" onclick="showAuth('driver')">Register my van</button>
-  </div>
-</div>
-
-<!-- AUTH -->
-<div class="screen" id="s-auth">
-  <div class="auth-box">
-    <button class="auth-back" onclick="go('s-splash')">← Back</button>
-    <h1 class="auth-title" id="auth-title">Join Scoop</h1>
-    <p class="auth-sub" id="auth-sub">Find vans near you in seconds</p>
-
-    <div class="tabs" id="auth-tabs">
-      <button class="tab active" id="tab-signup" onclick="switchTab('signup')">Sign up</button>
-      <button class="tab" id="tab-login" onclick="switchTab('login')">Log in</button>
+  <!-- ═══════════ SPLASH ═══════════ -->
+  <div id="s-splash" class="screen show">
+    <div class="splash-hero">
+      <span class="splash-ico">🍦</span>
+      <h1 class="splash-title">Scoop</h1>
+      <p class="splash-sub">Find ice cream vans live near you — or put yours on the map.</p>
+      <div class="splash-btns">
+        <button class="btn b-amber" onclick="showScreen('s-signup');setType('customer')">Get started — it's free</button>
+        <div class="splash-div"><span>Are you a van driver?</span></div>
+        <button class="btn b-black" onclick="showScreen('s-signup');setType('driver')">Register your van · £1.99/mo</button>
+        <button class="btn b-outline" onclick="showScreen('s-login')">I already have an account</button>
+      </div>
     </div>
+  </div>
 
-    <!-- Google button -->
-    <div class="btn-block" style="max-width:100%">
-      <button class="btn btn-google" onclick="signInGoogle()">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+  <!-- ═══════════ SIGN UP ═══════════ -->
+  <div id="s-signup" class="screen">
+    <div class="auth-body">
+      <button class="back-btn" onclick="showScreen('s-splash')">← Back</button>
+
+      <div class="type-tabs">
+        <button class="ttab active-c" id="tt-c" onclick="setType('customer')">Customer</button>
+        <button class="ttab" id="tt-d" onclick="setType('driver')">Van driver</button>
+      </div>
+
+      <h2 id="su-heading">Create your account</h2>
+      <p id="su-sub" class="auth-sub">Free forever — find vans near you.</p>
+
+      <div id="driver-price-box" class="price-box" style="display:none">
+        <strong>£1.99 / month</strong> — you'll be redirected to Stripe to pay after your account is created.
+      </div>
+
+      <div id="van-field" class="input-group" style="display:none">
+        <label>Van name</label>
+        <input type="text" id="inp-van" placeholder="e.g. Dave's Ices"/>
+      </div>
+
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="inp-email" placeholder="you@email.com"/>
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="inp-pass" placeholder="Min 6 characters"/>
+      </div>
+
+      <div id="email-confirm-notice" class="notice-box" style="display:none">
+        📧 We'll send you a confirmation email — check your inbox after signing up.
+      </div>
+
+      <button class="btn b-amber full-w" onclick="signUpEmail()">Create account</button>
+      <div class="auth-or"><span>or</span></div>
+      <button class="btn b-google full-w" onclick="signInGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="vertical-align:middle;margin-right:8px"/>
         Continue with Google
       </button>
-
-      <div class="divider">or</div>
-
-      <!-- Email fields (signup) -->
-      <div id="signup-fields">
-        <div class="input-group" id="name-field">
-          <label>Your name</label>
-          <input type="text" id="inp-name" placeholder="e.g. Rehaan">
-        </div>
-        <div class="input-group" id="van-field" style="display:none">
-          <label>Van name</label>
-          <input type="text" id="inp-van" placeholder="e.g. Dave's Ices">
-        </div>
-        <div class="input-group">
-          <label>Email</label>
-          <input type="email" id="inp-email" placeholder="you@email.com">
-        </div>
-        <div class="input-group">
-          <label>Password</label>
-          <input type="password" id="inp-pass" placeholder="Min 6 characters">
-        </div>
-        <div id="driver-price" style="display:none">
-          <div class="price-tag">Van driver subscription: <strong>£1.99/month</strong> — billed after sign-up</div>
-        </div>
-        <button class="btn btn-amber" style="width:100%;margin-top:4px" onclick="signUpEmail()">Create account</button>
-      </div>
-
-      <!-- Email fields (login) -->
-      <div id="login-fields" style="display:none">
-        <div class="input-group">
-          <label>Email</label>
-          <input type="email" id="inp-login-email" placeholder="you@email.com">
-        </div>
-        <div class="input-group">
-          <label>Password</label>
-          <input type="password" id="inp-login-pass" placeholder="Your password">
-        </div>
-        <button class="btn btn-amber" style="width:100%;margin-top:4px" onclick="logInEmail()">Log in</button>
-      </div>
+      <p class="switch-link">Already have an account? <a href="#" onclick="showScreen('s-login')">Log in</a></p>
     </div>
   </div>
+
+  <!-- ═══════════ LOG IN ═══════════ -->
+  <div id="s-login" class="screen">
+    <div class="auth-body">
+      <button class="back-btn" onclick="showScreen('s-splash')">← Back</button>
+      <h2>Welcome back</h2>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="inp-login-email" placeholder="you@email.com"/>
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="inp-login-pass" placeholder="Your password"/>
+      </div>
+      <button class="btn b-amber full-w" onclick="logInEmail()">Log in</button>
+      <div class="auth-or"><span>or</span></div>
+      <button class="btn b-google full-w" onclick="signInGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="vertical-align:middle;margin-right:8px"/>
+        Continue with Google
+      </button>
+      <p class="switch-link">No account? <a href="#" onclick="showScreen('s-signup')">Sign up</a></p>
+    </div>
+  </div>
+
+  <!-- ═══════════ EMAIL CONFIRM PENDING ═══════════ -->
+  <div id="s-confirm" class="screen">
+    <div class="success-body">
+      <div class="big-icon">📧</div>
+      <h2>Check your email</h2>
+      <p>We've sent a confirmation link to <strong id="confirm-email-addr"></strong>.<br/>Click the link to activate your account, then come back here and log in.</p>
+      <button class="btn b-amber" onclick="showScreen('s-login')">Go to log in</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ STRIPE REDIRECT (driver post-signup) ═══════════ -->
+  <div id="s-stripe" class="screen">
+    <div class="success-body">
+      <div class="big-icon">💳</div>
+      <h2>One last step</h2>
+      <p>Set up your £1.99/month subscription to go live on the map. You'll be redirected to Stripe now.</p>
+      <button class="btn b-amber" id="stripe-pay-btn" onclick="redirectToStripe()">Pay with Stripe</button>
+      <p style="font-size:12px;color:#999;margin-top:12px">Secured by Stripe. Cancel any time.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ MAIN APP ═══════════ -->
+  <div id="s-app" class="screen">
+    <div class="app-header">
+      <div class="app-logo">🍦 Scoop</div>
+      <div class="app-header-right">
+        <span class="app-user" id="app-username"></span>
+        <span id="driver-badge" class="badge-driver" style="display:none">🚐 Driver</span>
+        <button class="logout-btn" onclick="doLogout()">Log out</button>
+      </div>
+    </div>
+
+    <!-- Driver: go live toggle -->
+    <div id="driver-panel" style="display:none">
+      <div class="driver-controls">
+        <div>
+          <strong id="van-display-name"></strong>
+          <span id="live-status" class="status-dot offline"></span>
+          <span id="live-label" style="font-size:13px;color:#666">Offline</span>
+        </div>
+        <button class="btn b-amber" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Customer info bar -->
+    <div id="customer-panel" class="info-bar" style="display:none">
+      <span id="van-count-label">Loading vans…</span>
+      <button class="btn b-outline small" onclick="refreshMap()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
 </div>
 
-<!-- SUCCESS -->
-<div class="screen" id="s-success">
-  <div class="success-icon" id="suc-icon">🎉</div>
-  <div class="badge badge-cust" id="suc-badge">Customer account</div>
-  <h1 class="success-title" id="suc-title">You're in!</h1>
-  <p class="success-sub" id="suc-sub">Welcome to Scoop. Ice cream vans near you are live right now.</p>
-  <button class="btn btn-amber" onclick="goApp()" id="suc-btn">Open the app</button>
-</div>
-
-<!-- MAIN APP -->
-<div class="screen" id="s-app">
-  <div class="app-header">
-    <div class="app-logo">🍦 Scoop</div>
-    <div>
-      <span class="app-user" id="app-username"></span>
-      <button class="logout-btn" onclick="doLogout()">Log out</button>
-    </div>
-  </div>
-
-  <!-- MAP -->
-  <div class="map-area">
-    <div class="map-placeholder">
-      <span style="font-size:36px">🗺️</span>
-      <p>Live map — vans near you</p>
-    </div>
-    <div class="van-pin" style="top:45%;left:38%" onclick="toast('🍦 Dave\'s Ices — 0.3 miles away!')">🚐</div>
-    <div class="van-pin" style="top:60%;left:62%" onclick="toast('🍦 Frosty Joe — 0.7 miles away!')">🚐</div>
-    <div class="van-pin" style="top:30%;left:55%" onclick="toast('🍦 Scoop Express — 1.1 miles away!')">🚐</div>
-  </div>
-
-  <!-- TABS -->
-  <div id="tab-map" class="tab-content">
-    <div class="section">
-      <div class="section-title">Vans near you</div>
-      <div class="card">
-        <div class="card-row">
-          <div>
-            <div class="card-name">🚐 Dave's Ices</div>
-            <div class="card-sub"><span class="dot-live"></span>Live · 0.3 miles</div>
-          </div>
-          <button class="btn-sm btn-amber" onclick="toast('Request sent to Dave\'s Ices! 🍦')">Request</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-row">
-          <div>
-            <div class="card-name">🚐 Frosty Joe</div>
-            <div class="card-sub"><span class="dot-live"></span>Live · 0.7 miles</div>
-          </div>
-          <button class="btn-sm btn-amber" onclick="toast('Request sent to Frosty Joe! 🍦')">Request</button>
-        </div>
-      </div>
-    </div>
-    <div class="section">
-      <button class="btn btn-navy" style="width:100%" onclick="toast('Nearby vans notified! 🍦')">📣 Request a van to my street</button>
-    </div>
-  </div>
-
-  <div id="tab-events" class="tab-content" style="display:none">
-    <div class="section" style="margin-top:16px">
-      <div class="section-title">Upcoming events</div>
-      <div class="card">
-        <div class="card-name">🎉 Summer Fair — Southampton</div>
-        <div class="card-sub" style="margin-top:4px">Sat 5 Jul · 3 vans attending</div>
-        <button class="btn-sm btn-blue" style="margin-top:12px" onclick="toast('Booking confirmed! 🎉')">Book a van</button>
-      </div>
-      <div class="card">
-        <div class="card-name">🎂 Kids Birthday Party</div>
-        <div class="card-sub" style="margin-top:4px">Sun 13 Jul · From £99</div>
-        <button class="btn-sm btn-blue" style="margin-top:12px" onclick="toast('Booking confirmed! 🎉')">Book a van</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="tab-alerts" class="tab-content" style="display:none">
-    <div class="section" style="margin-top:16px">
-      <div class="section-title">Your alerts</div>
-      <div class="card">
-        <div class="card-name">🍦 Dave's Ices is nearby!</div>
-        <div class="card-sub" style="margin-top:4px">0.3 miles from you · Just now</div>
-      </div>
-      <div class="card">
-        <div class="card-name">📣 New van in your area</div>
-        <div class="card-sub" style="margin-top:4px">Frosty Joe joined Scoop · 2h ago</div>
-      </div>
-    </div>
-  </div>
-
-  <div id="tab-driver" class="tab-content" style="display:none">
-    <div class="section" style="margin-top:16px">
-      <div class="section-title">Driver dashboard</div>
-      <div class="card">
-        <div class="toggle-row">
-          <div>
-            <div class="card-name" id="d-lbl">Offline</div>
-            <div class="card-sub" id="d-sub">You're currently offline</div>
-          </div>
-          <button class="toggle" id="d-tgl" onclick="driverToggle()"></button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-name">📍 Your hotspots</div>
-        <div class="card-sub" style="margin-top:4px">Southampton city centre · The Common · Ocean Village</div>
-      </div>
-      <div class="card">
-        <div class="card-name">💳 Subscription</div>
-        <div class="card-sub" style="margin-top:4px">£1.99/month · Active</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="bottom-nav">
-    <button class="nav-btn active" id="nav-map" onclick="switchAppTab('map')"><span>🗺️</span>Map</button>
-    <button class="nav-btn" id="nav-events" onclick="switchAppTab('events')"><span>🎉</span>Events</button>
-    <button class="nav-btn" id="nav-alerts" onclick="switchAppTab('alerts')"><span>🔔</span>Alerts</button>
-    <button class="nav-btn" id="nav-driver" onclick="switchAppTab('driver')"><span>🚐</span>Driver</button>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<script>
-const SUPABASE_URL = 'https://wwgovmkzxrtobklxxija.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Z292bWt6eHJ0b2JrbHh4aWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTUyMjksImV4cCI6MjA5ODA3MTIyOX0.zdad6bvjSNALfZSmcC8t-N13fDZceYWdqFuNdKPsTM4';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let userType = 'customer';
-let driverLive = false;
-
-// Check session on load
-sb.auth.getSession().then(({ data: { session } }) => {
-  if (session) {
-    setUser(session.user);
-    go('s-app');
-  } else {
-    go('s-splash');
-  }
-});
-
-// Listen for auth changes (handles Google OAuth redirect)
-sb.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' && session) {
-    setUser(session.user);
-    showSuccess();
-  }
-});
-
-function setUser(user) {
-  const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'there';
-  document.getElementById('app-username').textContent = name;
-}
-
-function go(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function showAuth(type) {
-  userType = type;
-  document.getElementById('auth-title').textContent = type === 'driver' ? 'Register your van' : 'Join Scoop';
-  document.getElementById('auth-sub').textContent = type === 'driver' ? 'Start earning with your van today' : 'Find ice cream vans near you in seconds';
-  document.getElementById('van-field').style.display = type === 'driver' ? 'block' : 'none';
-  document.getElementById('driver-price').style.display = type === 'driver' ? 'block' : 'none';
-  switchTab('signup');
-  go('s-auth');
-}
-
-function switchTab(tab) {
-  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
-  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
-  document.getElementById('signup-fields').style.display = tab === 'signup' ? 'block' : 'none';
-  document.getElementById('login-fields').style.display = tab === 'login' ? 'block' : 'none';
-}
-
-async function signInGoogle() {
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin
-    }
-  });
-  if (error) toast('Error: ' + error.message);
-}
-
-async function signUpEmail() {
-  const email = document.getElementById('inp-email').value.trim();
-  const pass = document.getElementById('inp-pass').value;
-  const name = document.getElementById('inp-name').value.trim();
-  if (!email || !pass || !name) { toast('Please fill in all fields'); return; }
-  if (pass.length < 6) { toast('Password must be at least 6 characters'); return; }
-
-  const { error } = await sb.auth.signUp({
-    email, password: pass,
-    options: { data: { full_name: name, user_type: userType } }
-  });
-  if (error) { toast('Error: ' + error.message); return; }
-  showSuccess();
-}
-
-async function logInEmail() {
-  const email = document.getElementById('inp-login-email').value.trim();
-  const pass = document.getElementById('inp-login-pass').value;
-  if (!email || !pass) { toast('Please enter your email and password'); return; }
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { toast('Error: ' + error.message); return; }
-  setUser(data.user);
-  go('s-app');
-}
-
-function showSuccess() {
-  const isDriver = userType === 'driver';
-  document.getElementById('suc-icon').textContent = isDriver ? '🚐' : '🎉';
-  document.getElementById('suc-badge').textContent = isDriver ? 'Van driver account' : 'Customer account';
-  document.getElementById('suc-badge').className = 'badge ' + (isDriver ? 'badge-driv' : 'badge-cust');
-  document.getElementById('suc-title').textContent = isDriver ? 'Welcome to Scoop!' : "You're in!";
-  document.getElementById('suc-sub').textContent = isDriver
-    ? 'Your van is registered. Go live anytime to appear on the map.'
-    : 'Ice cream vans near you are live right now — tap the map to find them.';
-  document.getElementById('suc-btn').textContent = isDriver ? 'Open driver dashboard' : 'Open the app';
-  go('s-success');
-}
-
-function goApp() {
-  go('s-app');
-  if (userType === 'driver') switchAppTab('driver');
-}
-
-async function doLogout() {
-  await sb.auth.signOut();
-  go('s-splash');
-  toast('Logged out — see you next time! 👋');
-}
-
-function switchAppTab(tab) {
-  ['map','events','alerts','driver'].forEach(t => {
-    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
-    document.getElementById('nav-' + t).classList.toggle('active', t === tab);
-  });
-}
-
-function driverToggle() {
-  driverLive = !driverLive;
-  document.getElementById('d-tgl').classList.toggle('on', driverLive);
-  document.getElementById('d-lbl').textContent = driverLive ? 'Live' : 'Offline';
-  document.getElementById('d-sub').textContent = driverLive ? "You're live — customers can see you" : "You're currently offline";
-  toast(driverLive ? "You're live! Customers can see your location 🟢" : "You've gone offline");
-}
-
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
-</script>
+<script src="app.js"></script>
 </body>
 </html>
