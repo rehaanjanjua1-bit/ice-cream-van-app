@@ -8,9 +8,8 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Leaflet map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Google Maps -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA5eWKwKbQ7cX5XO1MlGG46OGPb7S__SOU&libraries=visualization"></script>
 
   <!-- Stripe -->
   <script src="https://js.stripe.com/v3/"></script>
@@ -39,24 +38,19 @@
   <div id="s-signup" class="screen">
     <div class="auth-body">
       <button class="back-btn" onclick="showScreen('s-splash')">← Back</button>
-
       <div class="type-tabs">
         <button class="ttab active-c" id="tt-c" onclick="setType('customer')">Customer</button>
         <button class="ttab" id="tt-d" onclick="setType('driver')">Van driver</button>
       </div>
-
       <h2 id="su-heading">Create your account</h2>
       <p id="su-sub" class="auth-sub">Free forever — find vans near you.</p>
-
       <div id="driver-price-box" class="price-box" style="display:none">
         <strong>£1.99 / month</strong> — you'll be redirected to Stripe to pay after your account is created.
       </div>
-
       <div id="van-field" class="input-group" style="display:none">
         <label>Van name</label>
         <input type="text" id="inp-van" placeholder="e.g. Dave's Ices"/>
       </div>
-
       <div class="input-group">
         <label>Email</label>
         <input type="email" id="inp-email" placeholder="you@email.com"/>
@@ -65,11 +59,6 @@
         <label>Password</label>
         <input type="password" id="inp-pass" placeholder="Min 6 characters"/>
       </div>
-
-      <div id="email-confirm-notice" class="notice-box" style="display:none">
-        📧 We'll send you a confirmation email — check your inbox after signing up.
-      </div>
-
       <button class="btn b-amber full-w" onclick="signUpEmail()">Create account</button>
       <div class="auth-or"><span>or</span></div>
       <button class="btn b-google full-w" onclick="signInGoogle()">
@@ -108,17 +97,17 @@
     <div class="success-body">
       <div class="big-icon">📧</div>
       <h2>Check your email</h2>
-      <p>We've sent a confirmation link to <strong id="confirm-email-addr"></strong>.<br/>Click the link to activate your account, then come back here and log in.</p>
+      <p>We've sent a confirmation link to <strong id="confirm-email-addr"></strong>.<br/>Click the link to activate your account, then come back and log in.</p>
       <button class="btn b-amber" onclick="showScreen('s-login')">Go to log in</button>
     </div>
   </div>
 
-  <!-- ═══════════ STRIPE REDIRECT (driver post-signup) ═══════════ -->
+  <!-- ═══════════ STRIPE REDIRECT ═══════════ -->
   <div id="s-stripe" class="screen">
     <div class="success-body">
       <div class="big-icon">💳</div>
       <h2>One last step</h2>
-      <p>Set up your £1.99/month subscription to go live on the map. You'll be redirected to Stripe now.</p>
+      <p>Set up your £1.99/month subscription to go live on the map.</p>
       <button class="btn b-amber" id="stripe-pay-btn" onclick="redirectToStripe()">Pay with Stripe</button>
       <p style="font-size:12px;color:#999;margin-top:12px">Secured by Stripe. Cancel any time.</p>
     </div>
@@ -135,7 +124,6 @@
       </div>
     </div>
 
-    <!-- Driver: go live toggle -->
     <div id="driver-panel" style="display:none">
       <div class="driver-controls">
         <div>
@@ -147,17 +135,14 @@
       </div>
     </div>
 
-    <!-- Map -->
     <div id="map"></div>
 
-    <!-- Customer info bar -->
     <div id="customer-panel" class="info-bar" style="display:none">
       <span id="van-count-label">Loading vans…</span>
       <button class="btn b-outline small" onclick="refreshMap()">🔄 Refresh</button>
     </div>
   </div>
 
-  <!-- Toast -->
   <div id="toast" class="toast"></div>
 </div>
 
