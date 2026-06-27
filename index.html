@@ -43,6 +43,17 @@
     .big-icon { font-size: 64px; margin-bottom: 16px; }
     .success-body h2 { font-size: 26px; font-weight: 800; margin-bottom: 10px; }
     .success-body p { color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
+    /* Role picker */
+    .role-picker { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px 24px; text-align: center; }
+    .role-picker h2 { font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+    .role-picker p { color: #666; font-size: 15px; margin-bottom: 32px; }
+    .role-cards { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 340px; }
+    .role-card { padding: 24px; border-radius: 16px; border: 2px solid #e5e5e5; background: #fff; cursor: pointer; text-align: left; transition: border-color .2s; }
+    .role-card:hover { border-color: #FFC300; }
+    .role-card .rc-icon { font-size: 36px; margin-bottom: 8px; }
+    .role-card .rc-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .role-card .rc-sub { font-size: 13px; color: #666; }
+    .role-card.driver-card { border-color: #FFC300; background: #fff9e6; }
     /* APP LAYOUT */
     #s-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
     #s-app.show { display: block; }
@@ -128,12 +139,41 @@
     </div>
   </div>
 
+  <!-- Role picker for Google sign-ins -->
+  <div id="s-role" class="screen">
+    <div class="role-picker">
+      <div class="big-icon">🍦</div>
+      <h2>Welcome to Scoop!</h2>
+      <p>Are you looking for ice cream vans, or do you drive one?</p>
+      <div class="role-cards">
+        <div class="role-card" onclick="setGoogleRole('customer')">
+          <div class="rc-icon">🗺️</div>
+          <div class="rc-title">I'm a customer</div>
+          <div class="rc-sub">Find ice cream vans near me — free forever</div>
+        </div>
+        <div class="role-card driver-card" onclick="showVanNameInput()">
+          <div class="rc-icon">🚐</div>
+          <div class="rc-title">I'm a van driver</div>
+          <div class="rc-sub">Put my van on the map · £1.99/month</div>
+        </div>
+        <div id="van-name-box" style="display:none">
+          <div class="input-group" style="text-align:left">
+            <label>Your van name</label>
+            <input type="text" id="inp-google-van" placeholder="e.g. Dave's Ices"/>
+          </div>
+          <button class="btn b-amber" onclick="setGoogleRole('driver')">Continue to payment →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="s-stripe" class="screen">
     <div class="success-body">
       <div class="big-icon">💳</div>
       <h2>One last step</h2>
-      <p>Set up your £1.99/month subscription to go live on the map.</p>
-      <button class="btn b-amber" style="width:auto;padding:14px 28px" onclick="redirectToStripe()">Pay with Stripe</button>
+      <p>Set up your £1.99/month subscription to appear on the map for customers.</p>
+      <button class="btn b-amber" style="width:auto;padding:14px 28px" onclick="redirectToStripe()">Pay with Stripe →</button>
+      <p style="font-size:12px;color:#999;margin-top:12px">Secured by Stripe. Cancel any time.</p>
     </div>
   </div>
 
