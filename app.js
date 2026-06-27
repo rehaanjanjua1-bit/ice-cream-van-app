@@ -1,6 +1,6 @@
 const SUPABASE_URL  = 'https://wwgovmkzxrtobklxxija.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Z292bWt6eHJ0b2JrbHh4aWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTUyMjksImV4cCI6MjA5ODA3MTIyOX0.zdad6bvjSNALfZSmcC8t-N13fDZceYWdqFuNdKPsTM4';
-const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/REPLACE_WITH_YOUR_PAYMENT_LINK';
+const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/test_5kQ14n1wVcQD1iyfvx7N600';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let map, userSession, userRole, userVanId, isLive = false;
