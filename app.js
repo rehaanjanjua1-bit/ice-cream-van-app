@@ -1,6 +1,6 @@
 const SUPABASE_URL  = 'https://wwgovmkzxrtobklxxija.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Z292bWt6eHJ0b2JrbHh4aWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTUyMjksImV4cCI6MjA5ODA3MTIyOX0.zdad6bvjSNALfZSmcC8t-N13fDZceYWdqFuNdKPsTM4';
-const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/REPLACE_WITH_YOUR_PAYMENT_LINK';
+const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/3cIeVceHV03Y1sy6aQejK00';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let map, userSession, userRole, userVanId, isLive = false;
@@ -42,6 +42,33 @@ function setType(type) {
   window._signupType = type;
 }
 
+function showVanNameInput() {
+  document.getElementById('van-name-box').style.display = 'block';
+}
+
+async function setGoogleRole(role) {
+  const user = userSession.user;
+  const vanName = role === 'driver' ? document.getElementById('inp-google-van').value.trim() : null;
+
+  if (role === 'driver' && !vanName) { toast('Please enter your van name.'); return; }
+
+  await sb.from('profiles').upsert({
+    id: user.id,
+    role,
+    van_name: vanName,
+    subscribed: false
+  });
+
+  userRole = role;
+
+  if (role === 'driver') {
+    showScreen('s-stripe');
+  } else {
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+    openApp(user, profile);
+  }
+}
+
 async function signUpEmail() {
   const email = document.getElementById('inp-email').value.trim();
   const pass = document.getElementById('inp-pass').value;
@@ -80,15 +107,24 @@ async function doLogout() {
 sb.auth.onAuthStateChange(async (event, session) => {
   userSession = session;
   if (!session) { showScreen('s-splash'); return; }
+
   const user = session.user;
   let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+
+  // New Google user — no profile yet, show role picker
   if (!profile) {
-    await sb.from('profiles').insert({ id: user.id, role: 'customer', van_name: null, subscribed: false });
-    profile = { role: 'customer', van_name: null, subscribed: false };
+    showScreen('s-role');
+    return;
   }
+
   userRole = profile.role;
   userVanId = user.id;
-  if (userRole === 'driver' && !profile.subscribed) { showScreen('s-stripe'); return; }
+
+  if (userRole === 'driver' && !profile.subscribed) {
+    showScreen('s-stripe');
+    return;
+  }
+
   openApp(user, profile);
 });
 
@@ -97,7 +133,7 @@ function redirectToStripe() {
 }
 
 async function openApp(user, profile) {
-  const name = user.user_metadata?.full_name || user.email.split('@')[0];
+  const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
   document.getElementById('app-username').textContent = name;
 
   if (profile.role === 'driver') {
@@ -113,9 +149,10 @@ async function openApp(user, profile) {
   showScreen('s-app');
 
   if (googleMapsReady) {
-    initMap();
+    initMap(profile.role);
   } else {
     pendingMapInit = true;
+    window._pendingRole = profile.role;
   }
 }
 
@@ -123,17 +160,13 @@ function initMapWhenReady() {
   googleMapsReady = true;
   if (pendingMapInit) {
     pendingMapInit = false;
-    initMap();
+    initMap(window._pendingRole);
   }
 }
 
-function initMap() {
+function initMap(role) {
   setMapSize();
-
-  if (map) {
-    google.maps.event.trigger(map, 'resize');
-    return;
-  }
+  if (map) { google.maps.event.trigger(map, 'resize'); return; }
 
   map = new google.maps.Map(document.getElementById('map'), {
     center: { lat: 52.5, lng: -1.5 },
@@ -150,7 +183,7 @@ function initMap() {
     });
   }
 
-  if (userRole !== 'driver') {
+  if (role !== 'driver') {
     loadVans();
     setInterval(loadVans, 30000);
   }
