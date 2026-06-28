@@ -185,7 +185,7 @@ function initMap(role) {
 
   if (role !== 'driver') {
     loadVans();
-    setInterval(loadVans, 30000);
+    setInterval(loadVans, 5000);
   }
 }
 
