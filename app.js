@@ -149,6 +149,7 @@ async function openApp(user, profile) {
   } else {
     document.getElementById('driver-panel').style.display = 'none';
     document.getElementById('customer-panel').style.display = 'flex';
+    document.getElementById('become-driver-btn').style.display = 'block';
   }
 
   showScreen('s-app');
@@ -258,3 +259,8 @@ function updateLiveUI(live) {
 }
 
 window._signupType = 'customer';
+
+function showDriverSignup() {
+  showScreen('s-role');
+  setTimeout(() => showVanNameInput(), 100);
+}
