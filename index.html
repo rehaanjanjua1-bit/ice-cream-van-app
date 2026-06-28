@@ -206,7 +206,14 @@
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
+  <div id="request-bar" style="display:none;position:absolute;bottom:46px;left:0;right:0;background:#1a1a1a;color:#fff;padding:12px 18px;z-index:1000;align-items:center;justify-content:space-between;gap:10px">
+      <span style="font-size:14px">📍 Request a van here?</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="cancelRequest()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px">Cancel</button>
+        <button onclick="confirmRequest()" style="background:#FFC300;border:none;color:#1a1a1a;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">Send Request 🍦</button>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
 </div>
 
 <script src="app.js"></script>
