@@ -49,18 +49,9 @@ function showVanNameInput() {
 async function setGoogleRole(role) {
   const user = userSession.user;
   const vanName = role === 'driver' ? document.getElementById('inp-google-van').value.trim() : null;
-
   if (role === 'driver' && !vanName) { toast('Please enter your van name.'); return; }
-
-  await sb.from('profiles').upsert({
-    id: user.id,
-    role,
-    van_name: vanName,
-    subscribed: false
-  });
-
+  await sb.from('profiles').upsert({ id: user.id, role, van_name: vanName, subscribed: false });
   userRole = role;
-
   if (role === 'driver') {
     showScreen('s-stripe');
   } else {
@@ -94,6 +85,9 @@ async function logInEmail() {
 }
 
 async function signInGoogle() {
+  // Store the intended role before redirecting to Google
+  const type = window._signupType || 'customer';
+  localStorage.setItem('scoop_intended_role', type);
   const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
   if (error) toast('Google sign-in error: ' + error.message);
 }
@@ -101,6 +95,7 @@ async function signInGoogle() {
 async function doLogout() {
   if (isLive) await goOffline();
   await sb.auth.signOut();
+  localStorage.removeItem('scoop_intended_role');
   showScreen('s-splash');
 }
 
@@ -111,12 +106,22 @@ sb.auth.onAuthStateChange(async (event, session) => {
   const user = session.user;
   let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
 
-  // New Google user — no profile yet, show role picker
   if (!profile) {
+    // Check if they came from the driver signup flow
+    const intendedRole = localStorage.getItem('scoop_intended_role');
+    if (intendedRole === 'driver') {
+      // Show role picker with driver pre-selected
+      showScreen('s-role');
+      // Pre-expand the van name box
+      setTimeout(() => showVanNameInput(), 100);
+      return;
+    }
+    // New user with no intent — show role picker
     showScreen('s-role');
     return;
   }
 
+  localStorage.removeItem('scoop_intended_role');
   userRole = profile.role;
   userVanId = user.id;
 
