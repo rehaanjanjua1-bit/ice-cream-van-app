@@ -4,11 +4,10 @@ const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/3cIeVceHV03Y1sy6aQejK00';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let map, userSession, userRole, userVanId, isLive = false;
-let vanMarkers = {}, requestMarkers = {}, heatmap = null;
+let vanMarkers = {}, requestMarkers = {}, demandCircles = [];
 let locationWatchId = null;
 let googleMapsReady = false;
 let pendingMapInit = false;
-let currentUserProfile = null;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => { s.classList.remove('show'); s.style.display = 'none'; });
@@ -119,7 +118,6 @@ sb.auth.onAuthStateChange(async (event, session) => {
   }
 
   localStorage.removeItem('scoop_intended_role');
-  currentUserProfile = profile;
   userRole = profile.role;
   userVanId = user.id;
 
@@ -189,22 +187,18 @@ function initMap(role) {
   }
 
   if (role === 'driver') {
-    // Driver: tap map to see requests, show heatmap
     loadRequestsForDriver();
     setInterval(loadRequestsForDriver, 10000);
   } else {
-    // Customer: tap map to request a van
     loadVans();
     setInterval(loadVans, 5000);
     loadRequestMarkers();
-
     map.addListener('click', (e) => {
       showRequestConfirm(e.latLng.lat(), e.latLng.lng());
     });
   }
 }
 
-// ── Van names on popups ──────────────────────────────────
 async function loadVans() {
   const { data: vans, error } = await sb
     .from('van_locations')
@@ -225,59 +219,47 @@ async function loadVans() {
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
     });
     const info = new google.maps.InfoWindow({
-      content: `<div style="font-family:sans-serif;padding:4px">
-        <strong style="font-size:14px">${vanName}</strong><br/>
-        <span style="color:#22c55e;font-size:12px">● Live now</span>
-      </div>`
+      content: '<div style="font-family:sans-serif;padding:4px"><strong style="font-size:14px">' + vanName + '</strong><br/><span style="color:#22c55e;font-size:12px">● Live now</span></div>'
     });
     marker.addListener('click', () => info.open(map, marker));
     vanMarkers[v.id] = marker;
   });
 
   const label = document.getElementById('van-count-label');
-  if (label) label.textContent = vans.length === 0 ? 'No vans live right now — check back soon!' : `${vans.length} van${vans.length > 1 ? 's' : ''} live near you 🍦`;
+  if (label) label.textContent = vans.length === 0 ? 'No vans live right now — check back soon!' : vans.length + ' van' + (vans.length > 1 ? 's' : '') + ' live near you 🍦';
 }
 
 function refreshMap() { loadVans(); toast('Map refreshed!'); }
 
-// ── Customer request pin ─────────────────────────────────
 let pendingRequestLat = null, pendingRequestLng = null, pendingRequestMarker = null;
 
 function showRequestConfirm(lat, lng) {
-  // Remove previous pending marker
   if (pendingRequestMarker) pendingRequestMarker.setMap(null);
-
   pendingRequestLat = lat;
   pendingRequestLng = lng;
-
-  // Show a pulsing pin
   pendingRequestMarker = new google.maps.Marker({
     position: { lat, lng },
     map,
     label: { text: '🙋', fontSize: '24px' },
     icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
   });
-
-  // Show confirm bar
   document.getElementById('request-bar').style.display = 'flex';
 }
 
 async function confirmRequest() {
   if (!pendingRequestLat) return;
-
   const { error } = await sb.from('van_requests').insert({
     lat: pendingRequestLat,
     lng: pendingRequestLng,
     user_id: userSession.user.id,
     created_at: new Date().toISOString()
   });
-
-  if (error) { toast('Error sending request: ' + error.message); return; }
-
+  if (error) { toast('Error: ' + error.message); return; }
   document.getElementById('request-bar').style.display = 'none';
   toast('Request sent! Drivers near you will see it 🍦');
   pendingRequestLat = null;
   pendingRequestLng = null;
+  if (pendingRequestMarker) { pendingRequestMarker.setMap(null); pendingRequestMarker = null; }
   loadRequestMarkers();
 }
 
@@ -289,14 +271,11 @@ function cancelRequest() {
 }
 
 async function loadRequestMarkers() {
-  // Show recent requests (last 2 hours) on customer map
   const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
   if (!reqs) return;
-
   Object.values(requestMarkers).forEach(m => m.setMap(null));
   requestMarkers = {};
-
   reqs.forEach(r => {
     const m = new google.maps.Marker({
       position: { lat: r.lat, lng: r.lng },
@@ -308,51 +287,40 @@ async function loadRequestMarkers() {
   });
 }
 
-// ── Demand heatmap for drivers ───────────────────────────
 async function loadRequestsForDriver() {
   const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
-  if (!reqs || reqs.length === 0) {
-    if (heatmap) heatmap.setMap(null);
-    return;
-  }
 
-  const points = reqs.map(r => ({
-    location: new google.maps.LatLng(r.lat, r.lng),
-    weight: 1
-  }));
-
-  if (heatmap) {
-    heatmap.setData(points);
-  } else {
-    // Heatmap removed - use circles instead
-    // heatmap = new google.maps.visualization.HeatmapLayer({
-      data: points,
-      map,
-      radius: 40,
-      opacity: 0.7,
-      gradient: ['rgba(0,0,0,0)', '#FFC300', '#ff6b00', '#ff0000']
-    });
-  }
-
-  // Also show individual request markers for drivers
+  demandCircles.forEach(c => c.setMap(null));
+  demandCircles = [];
   Object.values(requestMarkers).forEach(m => m.setMap(null));
   requestMarkers = {};
+
+  if (!reqs || reqs.length === 0) return;
+
   reqs.forEach(r => {
+    demandCircles.push(new google.maps.Circle({
+      center: { lat: r.lat, lng: r.lng },
+      radius: 300,
+      map,
+      fillColor: '#FFC300',
+      fillOpacity: 0.35,
+      strokeColor: '#ff6b00',
+      strokeOpacity: 0.8,
+      strokeWeight: 2
+    }));
+
     const m = new google.maps.Marker({
       position: { lat: r.lat, lng: r.lng },
       map,
-      label: { text: '🙋', fontSize: '16px' },
+      label: { text: '🙋', fontSize: '20px' },
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
       title: 'Customer wants ice cream here!'
     });
     requestMarkers[r.id] = m;
   });
-
-  toast(`${reqs.length} customer request${reqs.length > 1 ? 's' : ''} in the last 2 hours!`, 2000);
 }
 
-// ── Driver: go live ──────────────────────────────────────
 async function toggleLive() { if (isLive) { await goOffline(); } else { await goLive(); } }
 
 async function goLive() {
