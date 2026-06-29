@@ -142,11 +142,13 @@ async function openApp(user, profile) {
     document.getElementById('driver-panel').style.display = 'block';
     document.getElementById('customer-panel').style.display = 'none';
     document.getElementById('become-driver-btn').style.display = 'none';
+    document.getElementById('request-btn-wrap').style.display = 'none';
     document.getElementById('van-display-name').textContent = profile.van_name || 'Your van';
   } else {
     document.getElementById('driver-panel').style.display = 'none';
     document.getElementById('customer-panel').style.display = 'flex';
     document.getElementById('become-driver-btn').style.display = 'block';
+    document.getElementById('request-btn-wrap').style.display = 'block';
   }
 
   showScreen('s-app');
@@ -193,9 +195,6 @@ function initMap(role) {
     loadVans();
     setInterval(loadVans, 5000);
     loadRequestMarkers();
-    map.addListener('click', (e) => {
-      showRequestConfirm(e.latLng.lat(), e.latLng.lng());
-    });
   }
 }
 
@@ -231,43 +230,51 @@ async function loadVans() {
 
 function refreshMap() { loadVans(); toast('Map refreshed!'); }
 
-let pendingRequestLat = null, pendingRequestLng = null, pendingRequestMarker = null;
+// ── Request van at current location ─────────────────────
+async function requestVanHere() {
+  const btn = document.getElementById('request-van-btn');
+  btn.textContent = '📍 Getting your location…';
+  btn.disabled = true;
 
-function showRequestConfirm(lat, lng) {
-  if (pendingRequestMarker) pendingRequestMarker.setMap(null);
-  pendingRequestLat = lat;
-  pendingRequestLng = lng;
-  pendingRequestMarker = new google.maps.Marker({
-    position: { lat, lng },
-    map,
-    label: { text: '🙋', fontSize: '24px' },
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+  if (!navigator.geolocation) {
+    toast('Location not supported on this device.');
+    btn.textContent = '🍦 Request a van here';
+    btn.disabled = false;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    const { error } = await sb.from('van_requests').insert({
+      lat,
+      lng,
+      user_id: userSession.user.id,
+      created_at: new Date().toISOString()
+    });
+
+    if (error) {
+      toast('Error sending request: ' + error.message);
+    } else {
+      toast('Request sent! Drivers near you will see it 🍦');
+      // Show a pin at their location
+      new google.maps.Marker({
+        position: { lat, lng },
+        map,
+        label: { text: '🙋', fontSize: '24px' },
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+      });
+      map.setCenter({ lat, lng });
+    }
+
+    btn.textContent = '🍦 Request a van here';
+    btn.disabled = false;
+  }, () => {
+    toast('Could not get your location. Check permissions.');
+    btn.textContent = '🍦 Request a van here';
+    btn.disabled = false;
   });
-  document.getElementById('request-bar').style.display = 'flex';
-}
-
-async function confirmRequest() {
-  if (!pendingRequestLat) return;
-  const { error } = await sb.from('van_requests').insert({
-    lat: pendingRequestLat,
-    lng: pendingRequestLng,
-    user_id: userSession.user.id,
-    created_at: new Date().toISOString()
-  });
-  if (error) { toast('Error: ' + error.message); return; }
-  document.getElementById('request-bar').style.display = 'none';
-  toast('Request sent! Drivers near you will see it 🍦');
-  pendingRequestLat = null;
-  pendingRequestLng = null;
-  if (pendingRequestMarker) { pendingRequestMarker.setMap(null); pendingRequestMarker = null; }
-  loadRequestMarkers();
-}
-
-function cancelRequest() {
-  if (pendingRequestMarker) { pendingRequestMarker.setMap(null); pendingRequestMarker = null; }
-  pendingRequestLat = null;
-  pendingRequestLng = null;
-  document.getElementById('request-bar').style.display = 'none';
 }
 
 async function loadRequestMarkers() {
