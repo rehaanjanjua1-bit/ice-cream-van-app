@@ -325,7 +325,8 @@ async function loadRequestsForDriver() {
   if (heatmap) {
     heatmap.setData(points);
   } else {
-    heatmap = new google.maps.visualization.HeatmapLayer({
+    // Heatmap removed - use circles instead
+    // heatmap = new google.maps.visualization.HeatmapLayer({
       data: points,
       map,
       radius: 40,
