@@ -197,22 +197,17 @@
       </div>
     </div>
     <div id="map"></div>
-    <div id="become-driver-btn" style="display:none;position:absolute;bottom:58px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
+    <div id="become-driver-btn" style="display:none;position:absolute;bottom:108px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
       <button class="btn b-black small" onclick="showDriverSignup()" style="border-radius:20px;padding:8px 16px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🚐 Drive with Scoop · £1.99/mo</button>
+    </div>
+    <div id="request-btn-wrap" style="display:none;position:absolute;bottom:58px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
+      <button id="request-van-btn" onclick="requestVanHere()" style="background:#FFC300;border:none;color:#1a1a1a;padding:12px 20px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🍦 Request a van here</button>
     </div>
     <div id="customer-panel" class="info-bar" style="display:none">
       <span id="van-count-label">Loading vans…</span>
       <button class="btn b-outline small" onclick="refreshMap()">🔄 Refresh</button>
     </div>
   </div>
-
-  <div id="request-bar" style="display:none;position:absolute;bottom:46px;left:0;right:0;background:#1a1a1a;color:#fff;padding:12px 18px;z-index:1000;align-items:center;justify-content:space-between;gap:10px">
-      <span style="font-size:14px">📍 Request a van here?</span>
-      <div style="display:flex;gap:8px">
-        <button onclick="cancelRequest()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px">Cancel</button>
-        <button onclick="confirmRequest()" style="background:#FFC300;border:none;color:#1a1a1a;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">Send Request 🍦</button>
-      </div>
-    </div>
     <div id="toast" class="toast"></div>
 </div>
 
