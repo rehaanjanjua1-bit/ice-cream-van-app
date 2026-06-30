@@ -244,8 +244,9 @@ async function requestVanHere() {
   }
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+    // Fuzz the location slightly (~100m) so it shows the street/area
+    // rather than the customer's exact house, for privacy.
+    const { lat, lng } = fuzzLocation(pos.coords.latitude, pos.coords.longitude);
 
     const { error } = await sb.from('van_requests').insert({
       lat,
@@ -308,7 +309,7 @@ async function loadRequestsForDriver() {
   reqs.forEach(r => {
     demandCircles.push(new google.maps.Circle({
       center: { lat: r.lat, lng: r.lng },
-      radius: 300,
+      radius: 80,
       map,
       fillColor: '#FFC300',
       fillOpacity: 0.35,
@@ -370,3 +371,18 @@ function updateLiveUI(live) {
 }
 
 window._signupType = 'customer';
+
+// ── Privacy: fuzz a lat/lng so it lands near the street, not the exact house ──
+function fuzzLocation(lat, lng) {
+  // ~100m of randomness in a random direction
+  const radiusMeters = 100;
+  const radiusInDegrees = radiusMeters / 111320; // rough meters-to-degrees conversion
+
+  const angle = Math.random() * 2 * Math.PI;
+  const distance = Math.random() * radiusInDegrees;
+
+  const fuzzedLat = lat + (distance * Math.cos(angle));
+  const fuzzedLng = lng + (distance * Math.sin(angle)) / Math.cos(lat * Math.PI / 180);
+
+  return { lat: fuzzedLat, lng: fuzzedLng };
+}
