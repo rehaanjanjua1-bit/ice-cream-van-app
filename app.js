@@ -248,6 +248,9 @@ async function requestVanHere() {
     // rather than the customer's exact house, for privacy.
     const { lat, lng } = fuzzLocation(pos.coords.latitude, pos.coords.longitude);
 
+    // Delete any existing request from this user first (one request at a time)
+    await sb.from('van_requests').delete().eq('user_id', userSession.user.id);
+
     const { error } = await sb.from('van_requests').insert({
       lat,
       lng,
