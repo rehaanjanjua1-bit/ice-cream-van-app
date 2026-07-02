@@ -312,7 +312,7 @@ async function loadRequestsForDriver() {
   reqs.forEach(r => {
     demandCircles.push(new google.maps.Circle({
       center: { lat: r.lat, lng: r.lng },
-      radius: 80,
+      radius: 30,
       map,
       fillColor: '#FFC300',
       fillOpacity: 0.35,
