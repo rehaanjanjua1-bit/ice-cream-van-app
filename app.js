@@ -248,15 +248,16 @@ async function requestVanHere() {
     // rather than the customer's exact house, for privacy.
     const { lat, lng } = fuzzLocation(pos.coords.latitude, pos.coords.longitude);
 
-    // Delete any existing request from this user first (one request at a time)
-    await sb.from('van_requests').delete().eq('user_id', userSession.user.id);
-
-    const { error } = await sb.from('van_requests').insert({
+    // Upsert: if this user already has a request, update it in place.
+    // Otherwise create one. The unique constraint on user_id in the
+    // database guarantees only one row per user ever exists, even if
+    // this gets called multiple times in a row.
+    const { error } = await sb.from('van_requests').upsert({
       lat,
       lng,
       user_id: userSession.user.id,
       created_at: new Date().toISOString()
-    });
+    }, { onConflict: 'user_id' });
 
     if (error) {
       toast('Error sending request: ' + error.message);
