@@ -5,6 +5,7 @@ const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/3cIeVceHV03Y1sy6aQejK00';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let map, userSession, userRole, userVanId, isLive = false;
 let vanMarkers = {}, requestMarkers = {}, demandCircles = [];
+let myRequestMarker = null, hasActiveRequest = false;
 let locationWatchId = null;
 let googleMapsReady = false;
 let pendingMapInit = false;
@@ -195,6 +196,7 @@ function initMap(role) {
     loadVans();
     setInterval(loadVans, 5000);
     loadRequestMarkers();
+    checkExistingRequest();
   }
 }
 
@@ -230,8 +232,13 @@ async function loadVans() {
 
 function refreshMap() { loadVans(); toast('Map refreshed!'); }
 
-// ── Request van at current location ─────────────────────
+// ── Request van at current location (toggles between request/cancel) ──
 async function requestVanHere() {
+  if (hasActiveRequest) {
+    await cancelRequest();
+    return;
+  }
+
   const btn = document.getElementById('request-van-btn');
   btn.textContent = '📍 Getting your location…';
   btn.disabled = true;
@@ -244,14 +251,13 @@ async function requestVanHere() {
   }
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
-    // Fuzz the location slightly (~100m) so it shows the street/area
+    // Fuzz the location slightly (~20m) so it shows the street/area
     // rather than the customer's exact house, for privacy.
     const { lat, lng } = fuzzLocation(pos.coords.latitude, pos.coords.longitude);
 
     // Upsert: if this user already has a request, update it in place.
     // Otherwise create one. The unique constraint on user_id in the
-    // database guarantees only one row per user ever exists, even if
-    // this gets called multiple times in a row.
+    // database guarantees only one row per user ever exists.
     const { error } = await sb.from('van_requests').upsert({
       lat,
       lng,
@@ -261,25 +267,71 @@ async function requestVanHere() {
 
     if (error) {
       toast('Error sending request: ' + error.message);
+      btn.textContent = '🍦 Request a van here';
+      btn.disabled = false;
     } else {
       toast('Request sent! Drivers near you will see it 🍦');
-      // Show a pin at their location
-      new google.maps.Marker({
+
+      // Remove any previous pin this session before adding the new one,
+      // so pressing the button repeatedly never stacks up markers.
+      if (myRequestMarker) { myRequestMarker.setMap(null); }
+      myRequestMarker = new google.maps.Marker({
         position: { lat, lng },
         map,
         label: { text: '🙋', fontSize: '24px' },
         icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
       });
       map.setCenter({ lat, lng });
-    }
 
-    btn.textContent = '🍦 Request a van here';
-    btn.disabled = false;
+      hasActiveRequest = true;
+      btn.textContent = '❌ Cancel request';
+      btn.disabled = false;
+    }
   }, () => {
     toast('Could not get your location. Check permissions.');
     btn.textContent = '🍦 Request a van here';
     btn.disabled = false;
   });
+}
+
+async function cancelRequest() {
+  const btn = document.getElementById('request-van-btn');
+  btn.disabled = true;
+
+  const { error } = await sb.from('van_requests').delete().eq('user_id', userSession.user.id);
+
+  if (error) {
+    toast('Error cancelling request: ' + error.message);
+  } else {
+    toast('Request cancelled.');
+    if (myRequestMarker) { myRequestMarker.setMap(null); myRequestMarker = null; }
+    hasActiveRequest = false;
+  }
+
+  btn.textContent = '🍦 Request a van here';
+  btn.disabled = false;
+}
+
+// Check if this customer already has an active request (e.g. after a
+// page reload) so the button shows the correct state on load.
+async function checkExistingRequest() {
+  if (!userSession) return;
+  const { data } = await sb.from('van_requests').select('*').eq('user_id', userSession.user.id).maybeSingle();
+  const btn = document.getElementById('request-van-btn');
+  if (data) {
+    hasActiveRequest = true;
+    if (btn) btn.textContent = '❌ Cancel request';
+    if (myRequestMarker) { myRequestMarker.setMap(null); }
+    myRequestMarker = new google.maps.Marker({
+      position: { lat: data.lat, lng: data.lng },
+      map,
+      label: { text: '🙋', fontSize: '24px' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+    });
+  } else {
+    hasActiveRequest = false;
+    if (btn) btn.textContent = '🍦 Request a van here';
+  }
 }
 
 async function loadRequestMarkers() {
