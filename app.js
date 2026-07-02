@@ -283,7 +283,7 @@ async function requestVanHere() {
 }
 
 async function loadRequestMarkers() {
-  const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // last 30 min only
   const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
   if (!reqs) return;
   Object.values(requestMarkers).forEach(m => m.setMap(null));
@@ -300,7 +300,7 @@ async function loadRequestMarkers() {
 }
 
 async function loadRequestsForDriver() {
-  const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // last 30 min only
   const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
 
   demandCircles.forEach(c => c.setMap(null));
@@ -378,8 +378,9 @@ window._signupType = 'customer';
 
 // ── Privacy: fuzz a lat/lng so it lands near the street, not the exact house ──
 function fuzzLocation(lat, lng) {
-  // ~100m of randomness in a random direction
-  const radiusMeters = 100;
+  // ~20m of randomness in a random direction — kept inside the 30m
+  // demand circle drivers see, while still not showing the exact house
+  const radiusMeters = 20;
   const radiusInDegrees = radiusMeters / 111320; // rough meters-to-degrees conversion
 
   const angle = Math.random() * 2 * Math.PI;
