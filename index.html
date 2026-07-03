@@ -198,8 +198,9 @@
         <button class="btn b-amber small" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
       </div>
     </div>
-    <div id="search-box-wrap" style="display:none;position:absolute;top:62px;left:12px;right:12px;z-index:100">
-      <input id="address-search" type="text" placeholder="🔍 Or search an address…"/>
+    <div id="search-box-wrap" style="display:none;position:absolute;top:62px;left:12px;right:12px;z-index:100;gap:8px">
+      <input id="address-search" type="text" placeholder="🔍 Or search an address…" style="flex:1"/>
+      <button class="btn b-black small" onclick="useHomeAddress()" style="border-radius:10px;padding:0 14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">🏠 Home</button>
     </div>
     <div id="map"></div>
     <div id="become-driver-btn" style="display:none;position:absolute;bottom:108px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
@@ -207,6 +208,9 @@
     </div>
     <div id="cancel-preview-wrap" style="display:none;position:absolute;bottom:108px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
       <button class="btn b-outline small" onclick="cancelPreview()" style="border-radius:20px;padding:8px 16px;font-size:13px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">Cancel</button>
+    </div>
+    <div id="save-home-wrap" style="display:none;position:absolute;bottom:158px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
+      <button class="btn b-outline small" onclick="saveAsHome()" style="border-radius:20px;padding:8px 16px;font-size:13px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">💾 Save as home</button>
     </div>
     <div id="request-btn-wrap" style="display:none;position:absolute;bottom:58px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
       <button id="request-van-btn" onclick="requestVanHere()" style="background:#FFC300;border:none;color:#1a1a1a;padding:12px 20px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🍦 Request a van here</button>
