@@ -300,6 +300,8 @@ function setupAddressSearch() {
   });
 }
 
+const MAX_DRAG_METERS = 500;
+
 // Drops a draggable pin the customer can nudge before confirming.
 function showPreviewPin(lat, lng) {
   if (myRequestMarker) { myRequestMarker.setMap(null); }
@@ -317,10 +319,27 @@ function showPreviewPin(lat, lng) {
       strokeOpacity: 0
     }
   });
+
+  // Remember the original spot so we can stop the pin being dragged
+  // somewhere unreasonable (e.g. miles away onto a motorway).
+  let anchor = { lat, lng };
+  let lastGoodPos = { lat, lng };
+
   myRequestMarker.addListener('dragend', async () => {
+    const pos = myRequestMarker.getPosition();
+    const dist = distanceMeters(anchor.lat, anchor.lng, pos.lat(), pos.lng());
+
+    if (dist > MAX_DRAG_METERS) {
+      // Too far — snap back and let them know why.
+      myRequestMarker.setPosition(lastGoodPos);
+      toast('Please keep the pin within ' + MAX_DRAG_METERS + 'm of your original spot.');
+      return;
+    }
+
+    lastGoodPos = { lat: pos.lat(), lng: pos.lng() };
+
     // If a request is already saved, keep it in sync as they drag.
     if (hasActiveRequest) {
-      const pos = myRequestMarker.getPosition();
       await sb.from('van_requests').upsert({
         lat: pos.lat(),
         lng: pos.lng(),
