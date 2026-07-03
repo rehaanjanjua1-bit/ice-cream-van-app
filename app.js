@@ -144,12 +144,14 @@ async function openApp(user, profile) {
     document.getElementById('customer-panel').style.display = 'none';
     document.getElementById('become-driver-btn').style.display = 'none';
     document.getElementById('request-btn-wrap').style.display = 'none';
+    document.getElementById('search-box-wrap').style.display = 'none';
     document.getElementById('van-display-name').textContent = profile.van_name || 'Your van';
   } else {
     document.getElementById('driver-panel').style.display = 'none';
     document.getElementById('customer-panel').style.display = 'flex';
     document.getElementById('become-driver-btn').style.display = 'block';
     document.getElementById('request-btn-wrap').style.display = 'block';
+    document.getElementById('search-box-wrap').style.display = 'block';
   }
 
   showScreen('s-app');
@@ -197,6 +199,7 @@ function initMap(role) {
     setInterval(loadVans, 5000);
     loadRequestMarkers();
     checkExistingRequest();
+    setupAddressSearch();
   }
 }
 
@@ -232,12 +235,66 @@ async function loadVans() {
 
 function refreshMap() { loadVans(); toast('Map refreshed!'); }
 
-// ── Request van at current location (toggles between request/cancel) ──
+let isPreviewing = false;
+
+// ── Address search: lets a customer type an address instead of using GPS ──
+function setupAddressSearch() {
+  const input = document.getElementById('address-search');
+  if (!input || !window.google || !google.maps.places) return;
+  const autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry'] });
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    if (!place.geometry) { toast('Please choose an address from the list.'); return; }
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+    showPreviewPin(lat, lng);
+    map.setCenter({ lat, lng });
+    map.setZoom(16);
+    input.value = '';
+    input.blur();
+  });
+}
+
+// Drops a draggable pin the customer can nudge before confirming.
+function showPreviewPin(lat, lng) {
+  if (myRequestMarker) { myRequestMarker.setMap(null); }
+  myRequestMarker = new google.maps.Marker({
+    position: { lat, lng },
+    map,
+    draggable: true,
+    label: { text: '🙋', fontSize: '24px' },
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+  });
+  myRequestMarker.addListener('dragend', async () => {
+    // If a request is already saved, keep it in sync as they drag.
+    if (hasActiveRequest) {
+      const pos = myRequestMarker.getPosition();
+      await sb.from('van_requests').upsert({
+        lat: pos.lat(),
+        lng: pos.lng(),
+        user_id: userSession.user.id,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    }
+  });
+  isPreviewing = !hasActiveRequest;
+  document.getElementById('cancel-preview-wrap').style.display = isPreviewing ? 'block' : 'none';
+  updateRequestButton();
+}
+
+function updateRequestButton() {
+  const btn = document.getElementById('request-van-btn');
+  if (!btn) return;
+  btn.disabled = false;
+  if (hasActiveRequest) btn.textContent = '❌ Cancel request';
+  else if (isPreviewing) btn.textContent = '✅ Confirm this spot';
+  else btn.textContent = '🍦 Request a van here';
+}
+
+// ── Main button: request → confirm → cancel, all in one place ──
 async function requestVanHere() {
-  if (hasActiveRequest) {
-    await cancelRequest();
-    return;
-  }
+  if (hasActiveRequest) { await cancelRequest(); return; }
+  if (isPreviewing) { await confirmRequest(); return; }
 
   const btn = document.getElementById('request-van-btn');
   btn.textContent = '📍 Getting your location…';
@@ -245,53 +302,52 @@ async function requestVanHere() {
 
   if (!navigator.geolocation) {
     toast('Location not supported on this device.');
-    btn.textContent = '🍦 Request a van here';
-    btn.disabled = false;
+    updateRequestButton();
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    // Fuzz the location slightly (~20m) so it shows the street/area
-    // rather than the customer's exact house, for privacy.
+  navigator.geolocation.getCurrentPosition((pos) => {
+    // Fuzz the GPS location slightly (~20m) for privacy. Once dropped,
+    // the customer can drag the pin to the exact spot before confirming.
     const { lat, lng } = fuzzLocation(pos.coords.latitude, pos.coords.longitude);
-
-    // Upsert: if this user already has a request, update it in place.
-    // Otherwise create one. The unique constraint on user_id in the
-    // database guarantees only one row per user ever exists.
-    const { error } = await sb.from('van_requests').upsert({
-      lat,
-      lng,
-      user_id: userSession.user.id,
-      created_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
-
-    if (error) {
-      toast('Error sending request: ' + error.message);
-      btn.textContent = '🍦 Request a van here';
-      btn.disabled = false;
-    } else {
-      toast('Request sent! Drivers near you will see it 🍦');
-
-      // Remove any previous pin this session before adding the new one,
-      // so pressing the button repeatedly never stacks up markers.
-      if (myRequestMarker) { myRequestMarker.setMap(null); }
-      myRequestMarker = new google.maps.Marker({
-        position: { lat, lng },
-        map,
-        label: { text: '🙋', fontSize: '24px' },
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
-      });
-      map.setCenter({ lat, lng });
-
-      hasActiveRequest = true;
-      btn.textContent = '❌ Cancel request';
-      btn.disabled = false;
-    }
+    showPreviewPin(lat, lng);
+    map.setCenter({ lat, lng });
   }, () => {
     toast('Could not get your location. Check permissions.');
-    btn.textContent = '🍦 Request a van here';
-    btn.disabled = false;
+    updateRequestButton();
   });
+}
+
+async function confirmRequest() {
+  const btn = document.getElementById('request-van-btn');
+  btn.disabled = true;
+
+  const pos = myRequestMarker.getPosition();
+  const { error } = await sb.from('van_requests').upsert({
+    lat: pos.lat(),
+    lng: pos.lng(),
+    user_id: userSession.user.id,
+    created_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+
+  if (error) {
+    toast('Error sending request: ' + error.message);
+  } else {
+    toast('Request sent! Drivers near you will see it 🍦');
+    isPreviewing = false;
+    hasActiveRequest = true;
+    document.getElementById('cancel-preview-wrap').style.display = 'none';
+  }
+
+  updateRequestButton();
+}
+
+// Drops the preview pin without saving anything (used before confirming).
+function cancelPreview() {
+  if (myRequestMarker) { myRequestMarker.setMap(null); myRequestMarker = null; }
+  isPreviewing = false;
+  document.getElementById('cancel-preview-wrap').style.display = 'none';
+  updateRequestButton();
 }
 
 async function cancelRequest() {
@@ -306,32 +362,27 @@ async function cancelRequest() {
     toast('Request cancelled.');
     if (myRequestMarker) { myRequestMarker.setMap(null); myRequestMarker = null; }
     hasActiveRequest = false;
+    isPreviewing = false;
+    document.getElementById('cancel-preview-wrap').style.display = 'none';
   }
 
-  btn.textContent = '🍦 Request a van here';
-  btn.disabled = false;
+  updateRequestButton();
 }
 
 // Check if this customer already has an active request (e.g. after a
-// page reload) so the button shows the correct state on load.
+// page reload) so the button and pin show the correct state on load.
 async function checkExistingRequest() {
   if (!userSession) return;
   const { data } = await sb.from('van_requests').select('*').eq('user_id', userSession.user.id).maybeSingle();
-  const btn = document.getElementById('request-van-btn');
   if (data) {
     hasActiveRequest = true;
-    if (btn) btn.textContent = '❌ Cancel request';
-    if (myRequestMarker) { myRequestMarker.setMap(null); }
-    myRequestMarker = new google.maps.Marker({
-      position: { lat: data.lat, lng: data.lng },
-      map,
-      label: { text: '🙋', fontSize: '24px' },
-      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
-    });
+    isPreviewing = false;
+    showPreviewPin(data.lat, data.lng);
+    document.getElementById('cancel-preview-wrap').style.display = 'none';
   } else {
     hasActiveRequest = false;
-    if (btn) btn.textContent = '🍦 Request a van here';
   }
+  updateRequestButton();
 }
 
 async function loadRequestMarkers() {
