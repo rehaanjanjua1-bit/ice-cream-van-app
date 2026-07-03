@@ -152,6 +152,7 @@ async function openApp(user, profile) {
     document.getElementById('become-driver-btn').style.display = 'none';
     document.getElementById('request-btn-wrap').style.display = 'none';
     document.getElementById('search-box-wrap').style.display = 'none';
+    document.getElementById('toggle-view-btn').style.display = 'inline-block';
     document.getElementById('van-display-name').textContent = profile.van_name || 'Your van';
   } else {
     document.getElementById('driver-panel').style.display = 'none';
@@ -159,6 +160,7 @@ async function openApp(user, profile) {
     document.getElementById('become-driver-btn').style.display = 'block';
     document.getElementById('request-btn-wrap').style.display = 'block';
     document.getElementById('search-box-wrap').style.display = 'flex';
+    document.getElementById('toggle-view-btn').style.display = 'none';
   }
 
   showScreen('s-app');
@@ -201,6 +203,8 @@ function initMap(role) {
   if (role === 'driver') {
     loadRequestsForDriver();
     setInterval(loadRequestsForDriver, 10000);
+    loadVans();
+    setInterval(loadVans, 5000);
   } else {
     loadVans();
     setInterval(loadVans, 5000);
@@ -208,6 +212,40 @@ function initMap(role) {
     checkExistingRequest();
     setupAddressSearch();
   }
+}
+
+// ── Lets a driver temporarily browse the map as a customer, without
+// changing their actual account role or subscription. ──
+let viewingAsCustomer = false;
+let addressSearchReady = false;
+
+function toggleCustomerView() {
+  viewingAsCustomer = !viewingAsCustomer;
+  const btn = document.getElementById('toggle-view-btn');
+
+  if (viewingAsCustomer) {
+    document.getElementById('driver-panel').style.display = 'none';
+    document.getElementById('customer-panel').style.display = 'flex';
+    document.getElementById('request-btn-wrap').style.display = 'block';
+    document.getElementById('search-box-wrap').style.display = 'flex';
+    btn.textContent = '🚐 Back to driver view';
+
+    if (!addressSearchReady) {
+      setupAddressSearch();
+      addressSearchReady = true;
+    }
+    checkExistingRequest();
+  } else {
+    document.getElementById('driver-panel').style.display = 'block';
+    document.getElementById('customer-panel').style.display = 'none';
+    document.getElementById('request-btn-wrap').style.display = 'none';
+    document.getElementById('search-box-wrap').style.display = 'none';
+    document.getElementById('cancel-preview-wrap').style.display = 'none';
+    document.getElementById('save-home-wrap').style.display = 'none';
+    btn.textContent = '🍦 Browse as customer';
+  }
+
+  setMapSize();
 }
 
 async function loadVans() {
