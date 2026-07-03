@@ -308,7 +308,14 @@ function showPreviewPin(lat, lng) {
     map,
     draggable: true,
     label: { text: '🙋', fontSize: '24px' },
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+    // Icon is invisible but has a real size, so there's an actual
+    // touch/drag target on phones — a 0-scale icon can't be dragged.
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 20,
+      fillOpacity: 0,
+      strokeOpacity: 0
+    }
   });
   myRequestMarker.addListener('dragend', async () => {
     // If a request is already saved, keep it in sync as they drag.
