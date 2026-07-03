@@ -429,6 +429,49 @@ async function loadRequestMarkers() {
   });
 }
 
+// ── Distance between two points in metres (Haversine formula) ──
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Groups nearby requests together into "hotspots" so drivers see demand
+// as a single coloured zone instead of many overlapping circles.
+function clusterRequests(reqs, radiusMeters = 40) {
+  const used = new Array(reqs.length).fill(false);
+  const clusters = [];
+
+  reqs.forEach((r, i) => {
+    if (used[i]) return;
+    const group = [r];
+    used[i] = true;
+    reqs.forEach((r2, j) => {
+      if (used[j]) return;
+      if (distanceMeters(r.lat, r.lng, r2.lat, r2.lng) <= radiusMeters) {
+        group.push(r2);
+        used[j] = true;
+      }
+    });
+    const avgLat = group.reduce((s, p) => s + p.lat, 0) / group.length;
+    const avgLng = group.reduce((s, p) => s + p.lng, 0) / group.length;
+    clusters.push({ lat: avgLat, lng: avgLng, count: group.length });
+  });
+
+  return clusters;
+}
+
+// Green = low demand, amber = medium, red = high.
+function demandStyle(count) {
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 55 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 45 };
+  return { fill: '#22c55e', stroke: '#15803d', radius: 30 };
+}
+
 async function loadRequestsForDriver() {
   const since = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // last 30 min only
   const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
@@ -440,26 +483,31 @@ async function loadRequestsForDriver() {
 
   if (!reqs || reqs.length === 0) return;
 
-  reqs.forEach(r => {
+  const clusters = clusterRequests(reqs);
+
+  clusters.forEach((c, idx) => {
+    const style = demandStyle(c.count);
+
     demandCircles.push(new google.maps.Circle({
-      center: { lat: r.lat, lng: r.lng },
-      radius: 30,
+      center: { lat: c.lat, lng: c.lng },
+      radius: style.radius,
       map,
-      fillColor: '#FFC300',
+      fillColor: style.fill,
       fillOpacity: 0.35,
-      strokeColor: '#ff6b00',
-      strokeOpacity: 0.8,
+      strokeColor: style.stroke,
+      strokeOpacity: 0.85,
       strokeWeight: 2
     }));
 
+    const label = c.count > 1 ? '🙋×' + c.count : '🙋';
     const m = new google.maps.Marker({
-      position: { lat: r.lat, lng: r.lng },
+      position: { lat: c.lat, lng: c.lng },
       map,
-      label: { text: '🙋', fontSize: '20px' },
+      label: { text: label, fontSize: '15px', fontWeight: '700' },
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
-      title: 'Customer wants ice cream here!'
+      title: c.count === 1 ? 'Customer wants ice cream here!' : c.count + ' customers waiting here!'
     });
-    requestMarkers[r.id] = m;
+    requestMarkers[idx] = m;
   });
 }
 
