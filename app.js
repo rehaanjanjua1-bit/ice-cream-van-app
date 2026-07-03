@@ -97,6 +97,13 @@ async function signInGoogle() {
   if (error) toast('Google sign-in error: ' + error.message);
 }
 
+async function signInFacebook() {
+  const type = window._signupType || 'customer';
+  localStorage.setItem('scoop_intended_role', type);
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'facebook', options: { redirectTo: window.location.origin } });
+  if (error) toast('Facebook sign-in error: ' + error.message);
+}
+
 async function doLogout() {
   if (isLive) await goOffline();
   await sb.auth.signOut();
