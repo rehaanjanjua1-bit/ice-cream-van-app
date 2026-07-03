@@ -151,7 +151,7 @@ async function openApp(user, profile) {
     document.getElementById('customer-panel').style.display = 'flex';
     document.getElementById('become-driver-btn').style.display = 'block';
     document.getElementById('request-btn-wrap').style.display = 'block';
-    document.getElementById('search-box-wrap').style.display = 'block';
+    document.getElementById('search-box-wrap').style.display = 'flex';
   }
 
   showScreen('s-app');
@@ -279,7 +279,32 @@ function showPreviewPin(lat, lng) {
   });
   isPreviewing = !hasActiveRequest;
   document.getElementById('cancel-preview-wrap').style.display = isPreviewing ? 'block' : 'none';
+  document.getElementById('save-home-wrap').style.display = 'block';
   updateRequestButton();
+}
+
+// ── Home address: save current pin as home, or jump straight to it ──
+async function saveAsHome() {
+  if (!myRequestMarker) { toast('Place a pin first, then save it as home.'); return; }
+  const pos = myRequestMarker.getPosition();
+  const { error } = await sb.from('profiles').update({
+    home_lat: pos.lat(),
+    home_lng: pos.lng()
+  }).eq('id', userSession.user.id);
+
+  if (error) toast('Error saving home: ' + error.message);
+  else toast('Saved as your home address 🏠');
+}
+
+async function useHomeAddress() {
+  const { data: profile } = await sb.from('profiles').select('home_lat, home_lng').eq('id', userSession.user.id).single();
+  if (!profile || profile.home_lat == null || profile.home_lng == null) {
+    toast('No home address saved yet — place a pin, then tap "Save as home".');
+    return;
+  }
+  showPreviewPin(profile.home_lat, profile.home_lng);
+  map.setCenter({ lat: profile.home_lat, lng: profile.home_lng });
+  map.setZoom(16);
 }
 
 function updateRequestButton() {
@@ -347,6 +372,7 @@ function cancelPreview() {
   if (myRequestMarker) { myRequestMarker.setMap(null); myRequestMarker = null; }
   isPreviewing = false;
   document.getElementById('cancel-preview-wrap').style.display = 'none';
+  document.getElementById('save-home-wrap').style.display = 'none';
   updateRequestButton();
 }
 
@@ -364,6 +390,7 @@ async function cancelRequest() {
     hasActiveRequest = false;
     isPreviewing = false;
     document.getElementById('cancel-preview-wrap').style.display = 'none';
+    document.getElementById('save-home-wrap').style.display = 'none';
   }
 
   updateRequestButton();
