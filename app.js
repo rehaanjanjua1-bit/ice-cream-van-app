@@ -74,14 +74,27 @@ async function setGoogleRole(role) {
 }
 
 async function signUpEmail() {
+  const btn = document.getElementById('signup-btn');
+  if (btn.disabled) return; // already in progress, ignore extra clicks
+
   const email = document.getElementById('inp-email').value.trim();
   const pass = document.getElementById('inp-pass').value;
   const vanName = document.getElementById('inp-van').value.trim();
   const type = window._signupType || 'customer';
   if (!email || !pass) { toast('Please enter email and password.'); return; }
   if (type === 'driver' && !vanName) { toast('Please enter your van name.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { role: type, van_name: vanName || null }, emailRedirectTo: window.location.origin } });
-  if (error) { toast('Error: ' + error.message); return; }
+
+  if (error) {
+    toast('Error: ' + error.message);
+    btn.disabled = false;
+    btn.textContent = 'Create account';
+    return;
+  }
 
   if (data.user) {
     await sb.from('profiles').upsert({
@@ -109,14 +122,27 @@ async function signUpEmail() {
     document.getElementById('confirm-email-addr').textContent = email;
     showScreen('s-confirm');
   }
+
+  btn.disabled = false;
+  btn.textContent = 'Create account';
 }
 
 async function logInEmail() {
+  const btn = document.getElementById('login-btn');
+  if (btn.disabled) return;
+
   const email = document.getElementById('inp-login-email').value.trim();
   const pass = document.getElementById('inp-login-pass').value;
   if (!email || !pass) { toast('Please enter email and password.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Logging in…';
+
   const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { toast('Error: ' + error.message); }
+
+  btn.disabled = false;
+  btn.textContent = 'Log in';
 }
 
 async function sendPasswordReset() {
