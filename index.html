@@ -108,7 +108,7 @@
       </div>
       <div class="input-group"><label>Email</label><input type="email" id="inp-email" placeholder="you@email.com"/></div>
       <div class="input-group"><label>Password</label><input type="password" id="inp-pass" placeholder="Min 6 characters"/></div>
-      <button class="btn b-amber" onclick="signUpEmail()">Create account</button>
+      <button class="btn b-amber" id="signup-btn" onclick="signUpEmail()">Create account</button>
       <div class="auth-or"><span>or</span></div>
       <button class="btn b-google" onclick="signInGoogle()">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="margin-right:8px"/>Continue with Google
@@ -128,7 +128,7 @@
         <input type="password" id="inp-login-pass" placeholder="Your password"/>
       </div>
       <p style="text-align:right;margin-top:-10px;margin-bottom:16px"><a href="#" onclick="showScreen('s-forgot')" style="font-size:13px;color:#888">Forgot password?</a></p>
-      <button class="btn b-amber" onclick="logInEmail()">Log in</button>
+      <button class="btn b-amber" id="login-btn" onclick="logInEmail()">Log in</button>
       <div class="auth-or"><span>or</span></div>
       <button class="btn b-google" onclick="signInGoogle()">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" style="margin-right:8px"/>Continue with Google
