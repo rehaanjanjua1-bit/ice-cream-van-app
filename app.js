@@ -190,7 +190,17 @@ async function doLogout() {
   showScreen('s-splash');
 }
 
+// TEMPORARY DEBUG: shows what's happening on page load, right on screen.
+// Remove this once the refresh/session bug is found.
+setTimeout(() => toast('DEBUG: script loaded', 4000), 300);
+let debugAuthEventFired = false;
+setTimeout(() => {
+  if (!debugAuthEventFired) toast('DEBUG: onAuthStateChange never fired after 4s', 6000);
+}, 4000);
+
 sb.auth.onAuthStateChange(async (event, session) => {
+  debugAuthEventFired = true;
+  toast('DEBUG: auth event = ' + event + ' | session = ' + (session ? 'YES' : 'NO'), 5000);
   userSession = session;
   if (!session) { showScreen('s-splash'); return; }
 
