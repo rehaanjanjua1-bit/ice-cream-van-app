@@ -123,7 +123,11 @@
       <button class="back-btn" onclick="showScreen('s-splash')">← Back</button>
       <h2>Welcome back</h2>
       <div class="input-group"><label>Email</label><input type="email" id="inp-login-email" placeholder="you@email.com"/></div>
-      <div class="input-group"><label>Password</label><input type="password" id="inp-login-pass" placeholder="Your password"/></div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="inp-login-pass" placeholder="Your password"/>
+      </div>
+      <p style="text-align:right;margin-top:-10px;margin-bottom:16px"><a href="#" onclick="showScreen('s-forgot')" style="font-size:13px;color:#888">Forgot password?</a></p>
       <button class="btn b-amber" onclick="logInEmail()">Log in</button>
       <div class="auth-or"><span>or</span></div>
       <button class="btn b-google" onclick="signInGoogle()">
@@ -131,6 +135,26 @@
       </button>
       <button class="btn" style="background:#1877F2;color:#fff;margin-top:10px" onclick="signInFacebook()">Continue with Facebook</button>
       <p class="switch-link">No account? <a href="#" onclick="showScreen('s-signup')">Sign up</a></p>
+    </div>
+  </div>
+
+  <div id="s-newpassword" class="screen">
+    <div class="auth-body">
+      <h2>Choose a new password</h2>
+      <p class="auth-sub">Enter a new password for your account.</p>
+      <div class="input-group"><label>New password</label><input type="password" id="inp-newpass" placeholder="Min 6 characters"/></div>
+      <button class="btn b-amber" onclick="setNewPassword()">Save new password</button>
+    </div>
+  </div>
+
+  <div id="s-forgot" class="screen">
+    <div class="auth-body">
+      <button class="back-btn" onclick="showScreen('s-login')">← Back</button>
+      <h2>Reset your password</h2>
+      <p class="auth-sub">Enter your email and we'll send you a link to reset your password.</p>
+      <div class="input-group"><label>Email</label><input type="email" id="inp-forgot-email" placeholder="you@email.com"/></div>
+      <button class="btn b-amber" onclick="sendPasswordReset()">Send reset link</button>
+      <p class="switch-link">Remembered it? <a href="#" onclick="showScreen('s-login')">Log in</a></p>
     </div>
   </div>
 
