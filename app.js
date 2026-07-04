@@ -190,45 +190,44 @@ async function doLogout() {
   showScreen('s-splash');
 }
 
-// TEMPORARY DEBUG: shows what's happening on page load, right on screen.
-// Remove this once the refresh/session bug is found.
-setTimeout(() => toast('DEBUG: script loaded', 4000), 300);
-let debugAuthEventFired = false;
-setTimeout(() => {
-  if (!debugAuthEventFired) toast('DEBUG: onAuthStateChange never fired after 4s', 6000);
-}, 4000);
+// NOTE: the callback below is intentionally NOT `async`. Supabase JS v2
+// holds an internal lock while onAuthStateChange fires, and calling any
+// other sb.* method (like sb.from(...)) synchronously inside it can
+// deadlock — which was the root cause of the "logs out on refresh" bug,
+// even though the token in storage/on the server was always valid.
+// Wrapping the body in setTimeout(..., 0) defers it until after the lock
+// is released.
+sb.auth.onAuthStateChange((event, session) => {
+  setTimeout(async () => {
+    userSession = session;
+    if (!session) { showScreen('s-splash'); return; }
 
-sb.auth.onAuthStateChange(async (event, session) => {
-  debugAuthEventFired = true;
-  toast('DEBUG: auth event = ' + event + ' | session = ' + (session ? 'YES' : 'NO'), 5000);
-  userSession = session;
-  if (!session) { showScreen('s-splash'); return; }
+    if (event === 'PASSWORD_RECOVERY') {
+      showScreen('s-newpassword');
+      return;
+    }
 
-  if (event === 'PASSWORD_RECOVERY') {
-    showScreen('s-newpassword');
-    return;
-  }
+    const user = session.user;
+    let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
 
-  const user = session.user;
-  let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+    if (!profile) {
+      const intendedRole = localStorage.getItem('scoop_intended_role');
+      showScreen('s-role');
+      if (intendedRole === 'driver') setTimeout(() => showVanNameInput(), 100);
+      return;
+    }
 
-  if (!profile) {
-    const intendedRole = localStorage.getItem('scoop_intended_role');
-    showScreen('s-role');
-    if (intendedRole === 'driver') setTimeout(() => showVanNameInput(), 100);
-    return;
-  }
+    localStorage.removeItem('scoop_intended_role');
+    userRole = profile.role;
+    userVanId = user.id;
 
-  localStorage.removeItem('scoop_intended_role');
-  userRole = profile.role;
-  userVanId = user.id;
+    if (userRole === 'driver' && !profile.subscribed) {
+      showScreen('s-stripe');
+      return;
+    }
 
-  if (userRole === 'driver' && !profile.subscribed) {
-    showScreen('s-stripe');
-    return;
-  }
-
-  openApp(user, profile);
+    openApp(user, profile);
+  }, 0);
 });
 
 function redirectToStripe() {
