@@ -7,11 +7,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storage: window.localStorage,
-    // Skip the cross-tab locking mechanism entirely — it can get stuck
-    // ("deadlocked") after lots of tabs/windows are opened and closed,
-    // which silently hangs every future session check forever.
-    lock: async (name, acquireTimeout, fn) => fn()
+    storage: window.localStorage
   }
 });
 let map, userSession, userRole, userVanId, isLive = false;
