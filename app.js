@@ -83,8 +83,13 @@ async function signUpEmail() {
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { role: type, van_name: vanName || null }, emailRedirectTo: window.location.origin } });
   if (error) { toast('Error: ' + error.message); return; }
 
-  if (type === 'driver' && data.user) {
-    await sb.from('profiles').upsert({ id: data.user.id, role: 'driver', van_name: vanName, subscribed: false });
+  if (data.user) {
+    await sb.from('profiles').upsert({
+      id: data.user.id,
+      role: type,
+      van_name: type === 'driver' ? vanName : null,
+      subscribed: false
+    });
   }
 
   if (data.session) {
