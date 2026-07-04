@@ -94,8 +94,16 @@ async function signUpEmail() {
 
   if (data.session) {
     // Email confirmation is off — they're already logged in.
-    // onAuthStateChange fires automatically and takes them into the app.
+    // We drive the next screen ourselves here (rather than leaving it to
+    // the auth listener) since the profile row above is now guaranteed
+    // to exist by this point, avoiding a timing race.
     toast('Account created! Welcome to Scoop 🍦');
+    if (type === 'driver') {
+      showScreen('s-stripe');
+    } else {
+      const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+      openApp(data.user, profile);
+    }
   } else {
     // Email confirmation is required — show the "check your email" screen.
     document.getElementById('confirm-email-addr').textContent = email;
