@@ -2,7 +2,14 @@ const SUPABASE_URL  = 'https://wwgovmkzxrtobklxxija.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Z292bWt6eHJ0b2JrbHh4aWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTUyMjksImV4cCI6MjA5ODA3MTIyOX0.zdad6bvjSNALfZSmcC8t-N13fDZceYWdqFuNdKPsTM4';
 const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/3cIeVceHV03Y1sy6aQejK00';
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage
+  }
+});
 let map, userSession, userRole, userVanId, isLive = false;
 let vanMarkers = {}, requestMarkers = {}, demandCircles = [];
 let myRequestMarker = null, hasActiveRequest = false;
@@ -75,10 +82,19 @@ async function signUpEmail() {
   if (type === 'driver' && !vanName) { toast('Please enter your van name.'); return; }
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { role: type, van_name: vanName || null }, emailRedirectTo: window.location.origin } });
   if (error) { toast('Error: ' + error.message); return; }
-  document.getElementById('confirm-email-addr').textContent = email;
-  showScreen('s-confirm');
+
   if (type === 'driver' && data.user) {
     await sb.from('profiles').upsert({ id: data.user.id, role: 'driver', van_name: vanName, subscribed: false });
+  }
+
+  if (data.session) {
+    // Email confirmation is off — they're already logged in.
+    // onAuthStateChange fires automatically and takes them into the app.
+    toast('Account created! Welcome to Scoop 🍦');
+  } else {
+    // Email confirmation is required — show the "check your email" screen.
+    document.getElementById('confirm-email-addr').textContent = email;
+    showScreen('s-confirm');
   }
 }
 
@@ -88,6 +104,30 @@ async function logInEmail() {
   if (!email || !pass) { toast('Please enter email and password.'); return; }
   const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { toast('Error: ' + error.message); }
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('inp-forgot-email').value.trim();
+  if (!email) { toast('Please enter your email.'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  if (error) {
+    toast('Error: ' + error.message);
+  } else {
+    toast('If that email has an account, a reset link has been sent.');
+    showScreen('s-login');
+  }
+}
+
+async function setNewPassword() {
+  const newPass = document.getElementById('inp-newpass').value;
+  if (!newPass || newPass.length < 6) { toast('Password must be at least 6 characters.'); return; }
+  const { error } = await sb.auth.updateUser({ password: newPass });
+  if (error) {
+    toast('Error: ' + error.message);
+  } else {
+    toast('Password updated! You can now use it to log in.');
+    showScreen('s-login');
+  }
 }
 
 async function signInGoogle() {
@@ -114,6 +154,11 @@ async function doLogout() {
 sb.auth.onAuthStateChange(async (event, session) => {
   userSession = session;
   if (!session) { showScreen('s-splash'); return; }
+
+  if (event === 'PASSWORD_RECOVERY') {
+    showScreen('s-newpassword');
+    return;
+  }
 
   const user = session.user;
   let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
