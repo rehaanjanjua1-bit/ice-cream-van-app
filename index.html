@@ -231,6 +231,7 @@
           <span id="live-status" class="status-dot offline"></span>
           <span id="live-label" style="font-size:13px;color:#666">Offline</span>
         </div>
+        <button id="sound-toggle-btn" class="btn b-outline small" onclick="toggleSoundMute()" style="margin-right:8px;width:auto;padding:8px 12px" title="Toggle sound alerts for new requests">🔔</button>
         <button class="btn b-outline small" onclick="manageSubscription()" style="margin-right:8px">Manage subscription</button>
         <button class="btn b-amber small" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
       </div>
@@ -250,7 +251,7 @@
       <button class="btn b-outline small" onclick="saveAsHome()" style="border-radius:20px;padding:8px 16px;font-size:13px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">💾 Save as home</button>
     </div>
     <div id="request-btn-wrap" style="display:none;position:absolute;bottom:58px;left:50%;transform:translateX(-50%);z-index:100;white-space:nowrap">
-      <button id="request-van-btn" onclick="requestVanHere()" style="background:#FFC300;border:none;color:#1a1a1a;padding:12px 20px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🍦 Request a van here</button>
+      <button id="request-van-btn" onclick="requestVanHere()" style="background:#FF6B4A;border:none;color:#fff;padding:12px 20px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🍦 Request a van here</button>
     </div>
     <div id="customer-panel" class="info-bar" style="display:none">
       <span id="van-count-label">Loading vans…</span>
