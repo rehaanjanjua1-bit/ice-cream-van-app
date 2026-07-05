@@ -395,7 +395,7 @@ function escapeHtml(str) {
 async function loadVans() {
   const { data: vans, error } = await sb
     .from('van_locations')
-    .select('id, lat, lng, profiles(van_name, van_photo_url, menu_photo_url, payment_cash, payment_card, payment_contactless, bio, hours_note, social_link)')
+    .select('id, lat, lng, profiles(van_name, van_photo_url, menu_photo_url, payment_cash, payment_card, payment_contactless, bio, hours_note, instagram_link, tiktok_link)')
     .eq('is_live', true);
 
   if (error) { console.error(error); return; }
@@ -431,8 +431,11 @@ async function loadVans() {
     if (p.menu_photo_url) {
       content += '<a href="' + escapeHtml(p.menu_photo_url) + '" target="_blank" style="display:inline-block;margin-top:6px;font-size:12px;color:#d4a000;font-weight:600">📋 View menu</a><br/>';
     }
-    if (p.social_link) {
-      content += '<a href="' + escapeHtml(p.social_link) + '" target="_blank" style="display:inline-block;margin-top:4px;font-size:12px;color:#d4a000;font-weight:600">🔗 Follow</a>';
+    if (p.instagram_link) {
+      content += '<a href="' + escapeHtml(p.instagram_link) + '" target="_blank" style="display:inline-block;margin-top:4px;margin-right:10px;font-size:12px;color:#d4a000;font-weight:600">📸 Instagram</a>';
+    }
+    if (p.tiktok_link) {
+      content += '<a href="' + escapeHtml(p.tiktok_link) + '" target="_blank" style="display:inline-block;margin-top:4px;font-size:12px;color:#d4a000;font-weight:600">🎵 TikTok</a>';
     }
     content += '</div>';
 
@@ -786,25 +789,54 @@ function closeVanProfileEditor() {
   showScreen('s-app');
 }
 
+let pendingPhotoRemoval = { van: false, menu: false };
+
 async function loadVanProfileIntoEditor() {
   const user = userSession.user;
   const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
   if (!profile) return;
+
+  pendingPhotoRemoval = { van: false, menu: false };
+  document.getElementById('vp-van-photo').value = '';
+  document.getElementById('vp-menu-photo').value = '';
 
   document.getElementById('vp-pay-cash').checked = profile.payment_cash ?? true;
   document.getElementById('vp-pay-card').checked = profile.payment_card ?? false;
   document.getElementById('vp-pay-contactless').checked = profile.payment_contactless ?? false;
   document.getElementById('vp-bio').value = profile.bio || '';
   document.getElementById('vp-hours').value = profile.hours_note || '';
-  document.getElementById('vp-social').value = profile.social_link || '';
+  document.getElementById('vp-instagram').value = profile.instagram_link || '';
+  document.getElementById('vp-tiktok').value = profile.tiktok_link || '';
 
   const vanImg = document.getElementById('vp-van-photo-preview');
-  if (profile.van_photo_url) { vanImg.src = profile.van_photo_url; vanImg.style.display = 'block'; }
-  else { vanImg.style.display = 'none'; }
+  const vanRemoveLink = document.getElementById('vp-van-photo-remove');
+  if (profile.van_photo_url) {
+    vanImg.src = profile.van_photo_url; vanImg.style.display = 'block';
+    vanRemoveLink.style.display = 'inline-block';
+  } else {
+    vanImg.style.display = 'none';
+    vanRemoveLink.style.display = 'none';
+  }
 
   const menuImg = document.getElementById('vp-menu-photo-preview');
-  if (profile.menu_photo_url) { menuImg.src = profile.menu_photo_url; menuImg.style.display = 'block'; }
-  else { menuImg.style.display = 'none'; }
+  const menuRemoveLink = document.getElementById('vp-menu-photo-remove');
+  if (profile.menu_photo_url) {
+    menuImg.src = profile.menu_photo_url; menuImg.style.display = 'block';
+    menuRemoveLink.style.display = 'inline-block';
+  } else {
+    menuImg.style.display = 'none';
+    menuRemoveLink.style.display = 'none';
+  }
+}
+
+// Marks a photo for removal (actually cleared when Save is pressed) and
+// hides its preview immediately so it's clear something changed.
+function removeVanPhoto(type) {
+  pendingPhotoRemoval[type] = true;
+  document.getElementById('vp-' + type + '-photo-preview').style.display = 'none';
+  document.getElementById('vp-' + type + '-photo-remove').style.display = 'none';
+  document.getElementById('vp-' + type + '-photo').value = '';
+  toast('Photo will be removed when you save');
 }
 
 async function uploadVanImage(fileInputId, folder) {
@@ -835,14 +867,23 @@ async function saveVanProfile() {
     payment_contactless: document.getElementById('vp-pay-contactless').checked,
     bio: document.getElementById('vp-bio').value.trim() || null,
     hours_note: document.getElementById('vp-hours').value.trim() || null,
-    social_link: document.getElementById('vp-social').value.trim() || null
+    instagram_link: document.getElementById('vp-instagram').value.trim() || null,
+    tiktok_link: document.getElementById('vp-tiktok').value.trim() || null
   };
 
-  const vanPhotoUrl = await uploadVanImage('vp-van-photo', 'vans');
-  if (vanPhotoUrl) update.van_photo_url = vanPhotoUrl;
+  if (pendingPhotoRemoval.van) {
+    update.van_photo_url = null;
+  } else {
+    const vanPhotoUrl = await uploadVanImage('vp-van-photo', 'vans');
+    if (vanPhotoUrl) update.van_photo_url = vanPhotoUrl;
+  }
 
-  const menuPhotoUrl = await uploadVanImage('vp-menu-photo', 'menus');
-  if (menuPhotoUrl) update.menu_photo_url = menuPhotoUrl;
+  if (pendingPhotoRemoval.menu) {
+    update.menu_photo_url = null;
+  } else {
+    const menuPhotoUrl = await uploadVanImage('vp-menu-photo', 'menus');
+    if (menuPhotoUrl) update.menu_photo_url = menuPhotoUrl;
+  }
 
   const { error } = await sb.from('profiles').update(update).eq('id', user.id);
 
