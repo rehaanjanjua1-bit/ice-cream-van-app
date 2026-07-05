@@ -276,12 +276,14 @@
         <label>Van photo</label>
         <input type="file" id="vp-van-photo" accept="image/*"/>
         <img id="vp-van-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
+        <a href="#" id="vp-van-photo-remove" onclick="removeVanPhoto('van');return false;" style="display:none;font-size:12px;color:#c0392b;margin-top:6px">✕ Remove photo</a>
       </div>
 
       <div class="input-group">
         <label>Menu photo</label>
         <input type="file" id="vp-menu-photo" accept="image/*"/>
         <img id="vp-menu-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
+        <a href="#" id="vp-menu-photo-remove" onclick="removeVanPhoto('menu');return false;" style="display:none;font-size:12px;color:#c0392b;margin-top:6px">✕ Remove photo</a>
       </div>
 
       <div class="input-group">
@@ -299,13 +301,18 @@
       </div>
 
       <div class="input-group">
-        <label>Operating hours note</label>
-        <input type="text" id="vp-hours" placeholder="Usually out Fri-Sun afternoons"/>
+        <label>Operating hours (optional — leave blank if it varies)</label>
+        <input type="text" id="vp-hours" placeholder="e.g. Usually out Fri-Sun afternoons"/>
       </div>
 
       <div class="input-group">
-        <label>Social media link</label>
-        <input type="text" id="vp-social" placeholder="https://instagram.com/yourvan"/>
+        <label>Instagram (optional)</label>
+        <input type="text" id="vp-instagram" placeholder="https://instagram.com/yourvan"/>
+      </div>
+
+      <div class="input-group">
+        <label>TikTok (optional)</label>
+        <input type="text" id="vp-tiktok" placeholder="https://tiktok.com/@yourvan"/>
       </div>
 
       <button class="btn b-amber" id="vp-save-btn" onclick="saveVanProfile()">Save profile</button>
