@@ -234,6 +234,26 @@ function redirectToStripe() {
   window.location.href = STRIPE_PAYMENT_LINK + '?client_reference_id=' + userSession.user.id;
 }
 
+// Lets someone who ended up on the driver payment screen back out
+// instead of being stuck there — switches them to a plain customer account.
+async function cancelDriverSignup() {
+  const user = userSession.user;
+  const { error } = await sb.from('profiles').update({
+    role: 'customer',
+    van_name: null,
+    subscribed: false
+  }).eq('id', user.id);
+
+  if (error) {
+    toast('Error: ' + error.message);
+    return;
+  }
+
+  userRole = 'customer';
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  openApp(user, profile);
+}
+
 async function manageSubscription() {
   toast('Opening subscription settings…');
   try {
