@@ -30,8 +30,19 @@ export default async function handler(req, res) {
   if (event.type === 'checkout.session.completed' || event.type === 'customer.subscription.created') {
     const session = event.data.object;
     const userId = session.client_reference_id || session.metadata?.user_id;
+    const customerId = session.customer;
     if (userId) {
-      await sb.from('profiles').update({ subscribed: true }).eq('id', userId);
+      const update = { subscribed: true };
+      if (customerId) update.stripe_customer_id = customerId;
+      await sb.from('profiles').update(update).eq('id', userId);
+    }
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    const customerId = subscription.customer;
+    if (customerId) {
+      await sb.from('profiles').update({ subscribed: false }).eq('stripe_customer_id', customerId);
     }
   }
 
