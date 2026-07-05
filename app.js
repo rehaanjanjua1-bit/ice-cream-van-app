@@ -392,6 +392,93 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+let vanInfoWindows = {};
+let vanRatingCache = {};
+
+function renderStars(avg, count, myRating, vanId) {
+  let html = '<div style="margin-top:6px">';
+  for (let i = 1; i <= 5; i++) {
+    const filled = i <= Math.round(avg);
+    html += '<span onclick="rateVan(\'' + vanId + '\',' + i + ')" style="cursor:pointer;font-size:16px;color:' + (filled ? '#f59e0b' : '#ddd') + '">★</span>';
+  }
+  if (count > 0) {
+    html += ' <span style="font-size:12px;color:#777">' + avg.toFixed(1) + ' (' + count + ')</span>';
+  } else {
+    html += ' <span style="font-size:12px;color:#999">No ratings yet</span>';
+  }
+  if (myRating) {
+    html += '<div style="font-size:11px;color:#999;margin-top:2px">You rated: ' + myRating + '★ — tap to change</div>';
+  } else {
+    html += '<div style="font-size:11px;color:#999;margin-top:2px">Tap a star to rate</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildVanPopupContent(vanId, vanName, p) {
+  const stats = vanRatingCache[vanId] || { avg: 0, count: 0, myRating: null };
+
+  let content = '<div style="font-family:sans-serif;padding:4px;max-width:220px">';
+  if (p.van_photo_url) {
+    content += '<img src="' + escapeHtml(p.van_photo_url) + '" style="width:100%;border-radius:8px;margin-bottom:6px"/>';
+  }
+  content += '<strong style="font-size:14px">' + escapeHtml(vanName) + '</strong><br/>';
+  content += '<span style="color:#22c55e;font-size:12px">● Live now</span>';
+  content += renderStars(stats.avg, stats.count, stats.myRating, vanId);
+  if (p.bio) content += '<p style="font-size:12px;color:#555;margin:6px 0 0">' + escapeHtml(p.bio) + '</p>';
+  if (p.hours_note) content += '<p style="font-size:12px;color:#555;margin:4px 0 0">🕐 ' + escapeHtml(p.hours_note) + '</p>';
+
+  const payments = [];
+  if (p.payment_cash) payments.push('Cash');
+  if (p.payment_card) payments.push('Card');
+  if (p.payment_contactless) payments.push('Contactless');
+  if (payments.length) content += '<p style="font-size:12px;color:#555;margin:4px 0 0">💳 ' + payments.join(', ') + '</p>';
+
+  if (p.menu_photo_url) {
+    content += '<a href="' + escapeHtml(p.menu_photo_url) + '" target="_blank" style="display:inline-block;margin-top:6px;font-size:12px;color:#d4a000;font-weight:600">📋 View menu</a><br/>';
+  }
+  if (p.instagram_link) {
+    content += '<a href="' + escapeHtml(p.instagram_link) + '" target="_blank" style="display:inline-block;margin-top:4px;margin-right:10px;font-size:12px;color:#d4a000;font-weight:600">📸 Instagram</a>';
+  }
+  if (p.tiktok_link) {
+    content += '<a href="' + escapeHtml(p.tiktok_link) + '" target="_blank" style="display:inline-block;margin-top:4px;font-size:12px;color:#d4a000;font-weight:600">🎵 TikTok</a>';
+  }
+  content += '</div>';
+  return content;
+}
+
+// Called when a customer taps a star in a van's popup.
+async function rateVan(vanId, rating) {
+  if (!userSession) { toast('Log in to rate a van.'); return; }
+  const customerId = userSession.user.id;
+
+  const { error } = await sb.from('van_ratings').upsert({
+    van_id: vanId,
+    customer_id: customerId,
+    rating: rating
+  }, { onConflict: 'van_id,customer_id' });
+
+  if (error) {
+    toast('Error saving rating: ' + error.message);
+    return;
+  }
+
+  toast('Thanks for rating! 🍦');
+
+  // Refresh this van's stats and re-render just its popup content.
+  const { data: allRatings } = await sb.from('van_ratings').select('rating, customer_id').eq('van_id', vanId);
+  const count = allRatings.length;
+  const avg = count > 0 ? allRatings.reduce((s, r) => s + r.rating, 0) / count : 0;
+  const mine = allRatings.find(r => r.customer_id === customerId);
+  vanRatingCache[vanId] = { avg, count, myRating: mine ? mine.rating : null };
+
+  const marker = vanMarkers[vanId];
+  const info = vanInfoWindows[vanId];
+  if (info && marker && marker.__vanName !== undefined) {
+    info.setContent(buildVanPopupContent(vanId, marker.__vanName, marker.__profile));
+  }
+}
+
 async function loadVans() {
   const { data: vans, error } = await sb
     .from('van_locations')
@@ -403,6 +490,24 @@ async function loadVans() {
   Object.values(vanMarkers).forEach(m => m.setMap(null));
   vanMarkers = {};
 
+  const vanIds = vans.map(v => v.id);
+  let ratingsByVan = {};
+  if (vanIds.length > 0) {
+    const { data: allRatings } = await sb.from('van_ratings').select('van_id, rating, customer_id').in('van_id', vanIds);
+    (allRatings || []).forEach(r => {
+      if (!ratingsByVan[r.van_id]) ratingsByVan[r.van_id] = [];
+      ratingsByVan[r.van_id].push(r);
+    });
+  }
+  const myId = userSession ? userSession.user.id : null;
+  vanIds.forEach(id => {
+    const list = ratingsByVan[id] || [];
+    const count = list.length;
+    const avg = count > 0 ? list.reduce((s, r) => s + r.rating, 0) / count : 0;
+    const mine = myId ? list.find(r => r.customer_id === myId) : null;
+    vanRatingCache[id] = { avg, count, myRating: mine ? mine.rating : null };
+  });
+
   vans.forEach(v => {
     const p = v.profiles || {};
     const vanName = p.van_name || 'Ice Cream Van';
@@ -410,39 +515,22 @@ async function loadVans() {
       position: { lat: v.lat, lng: v.lng },
       map,
       label: { text: '🍦', fontSize: '24px' },
-      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 18,
+        fillOpacity: 0,
+        strokeOpacity: 0
+      }
     });
+    marker.__vanName = vanName;
+    marker.__profile = p;
 
-    let content = '<div style="font-family:sans-serif;padding:4px;max-width:220px">';
-    if (p.van_photo_url) {
-      content += '<img src="' + escapeHtml(p.van_photo_url) + '" style="width:100%;border-radius:8px;margin-bottom:6px"/>';
-    }
-    content += '<strong style="font-size:14px">' + escapeHtml(vanName) + '</strong><br/>';
-    content += '<span style="color:#22c55e;font-size:12px">● Live now</span>';
-    if (p.bio) content += '<p style="font-size:12px;color:#555;margin:6px 0 0">' + escapeHtml(p.bio) + '</p>';
-    if (p.hours_note) content += '<p style="font-size:12px;color:#555;margin:4px 0 0">🕐 ' + escapeHtml(p.hours_note) + '</p>';
-
-    const payments = [];
-    if (p.payment_cash) payments.push('Cash');
-    if (p.payment_card) payments.push('Card');
-    if (p.payment_contactless) payments.push('Contactless');
-    if (payments.length) content += '<p style="font-size:12px;color:#555;margin:4px 0 0">💳 ' + payments.join(', ') + '</p>';
-
-    if (p.menu_photo_url) {
-      content += '<a href="' + escapeHtml(p.menu_photo_url) + '" target="_blank" style="display:inline-block;margin-top:6px;font-size:12px;color:#d4a000;font-weight:600">📋 View menu</a><br/>';
-    }
-    if (p.instagram_link) {
-      content += '<a href="' + escapeHtml(p.instagram_link) + '" target="_blank" style="display:inline-block;margin-top:4px;margin-right:10px;font-size:12px;color:#d4a000;font-weight:600">📸 Instagram</a>';
-    }
-    if (p.tiktok_link) {
-      content += '<a href="' + escapeHtml(p.tiktok_link) + '" target="_blank" style="display:inline-block;margin-top:4px;font-size:12px;color:#d4a000;font-weight:600">🎵 TikTok</a>';
-    }
-    content += '</div>';
-
-    const info = new google.maps.InfoWindow({ content });
+    const info = new google.maps.InfoWindow({ content: buildVanPopupContent(v.id, vanName, p) });
     marker.addListener('click', () => info.open(map, marker));
     vanMarkers[v.id] = marker;
+    vanInfoWindows[v.id] = info;
   });
+
 
   const label = document.getElementById('van-count-label');
   if (label) label.textContent = vans.length === 0 ? 'No vans live right now — check back soon!' : vans.length + ' van' + (vans.length > 1 ? 's' : '') + ' live near you 🍦';
