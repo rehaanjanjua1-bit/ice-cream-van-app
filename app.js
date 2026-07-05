@@ -234,6 +234,25 @@ function redirectToStripe() {
   window.location.href = STRIPE_PAYMENT_LINK + '?client_reference_id=' + userSession.user.id;
 }
 
+async function manageSubscription() {
+  toast('Opening subscription settings…');
+  try {
+    const res = await fetch('/api/create-portal-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userSession.user.id })
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      toast(data.error || 'Could not open subscription settings.');
+    }
+  } catch (err) {
+    toast('Error: ' + err.message);
+  }
+}
+
 async function openApp(user, profile) {
   const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
   document.getElementById('app-username').textContent = name;
