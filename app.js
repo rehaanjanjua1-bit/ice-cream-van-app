@@ -658,6 +658,8 @@ async function confirmRequest() {
   const btn = document.getElementById('request-van-btn');
   btn.disabled = true;
 
+  cleanupExpiredRequests();
+
   const pos = myRequestMarker.getPosition();
   const { error } = await sb.from('van_requests').upsert({
     lat: pos.lat(),
@@ -783,7 +785,20 @@ function demandStyle(count) {
   return { fill: '#22c55e', stroke: '#15803d', radius: 30 };
 }
 
+// Actually removes expired request rows from the database, instead of
+// just hiding them from view. Piggybacked onto driver polling (every 10s
+// while a driver is live) rather than a scheduled job, since Vercel's
+// free plan only allows once-daily cron jobs — this achieves near
+// real-time cleanup for free as long as at least one driver is online.
+async function cleanupExpiredRequests() {
+  const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { error } = await sb.from('van_requests').delete().lt('created_at', cutoff);
+  if (error) console.error('Cleanup error:', error.message);
+}
+
 async function loadRequestsForDriver() {
+  cleanupExpiredRequests();
+
   const since = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // last 30 min only
   const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
 
