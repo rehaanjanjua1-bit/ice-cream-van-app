@@ -231,11 +231,64 @@
           <span id="live-status" class="status-dot offline"></span>
           <span id="live-label" style="font-size:13px;color:#666">Offline</span>
         </div>
-        <button id="sound-toggle-btn" class="btn b-outline small" onclick="toggleSoundMute()" style="margin-right:8px;width:auto;padding:8px 12px" title="Toggle sound alerts for new requests">🔔</button>
-        <button class="btn b-outline small" onclick="manageSubscription()" style="margin-right:8px">Manage subscription</button>
+        <div style="position:relative">
+          <button class="btn b-outline small" onclick="toggleDriverSettingsMenu()" style="margin-right:8px;width:auto;padding:8px 12px">⚙</button>
+          <div id="driver-settings-menu" style="display:none;position:absolute;top:40px;right:8px;background:#fff;border:1px solid #eee;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:2000;width:200px;overflow:hidden">
+            <a href="#" onclick="openVanProfileEditor();return false;" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">📋 Edit van profile</a>
+            <a href="#" onclick="manageSubscription();return false;" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">💳 Manage subscription</a>
+            <a href="#" onclick="toggleSoundMute();return false;" id="sound-toggle-btn" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none">🔔 Sound alerts: on</a>
+          </div>
+        </div>
         <button class="btn b-amber small" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
       </div>
     </div>
+
+    <div id="s-van-profile" class="screen">
+      <div class="auth-body">
+        <button class="back-btn" onclick="closeVanProfileEditor()">← Back</button>
+        <h2>Edit van profile</h2>
+        <p class="auth-sub">Everything here is optional — fill in what you'd like customers to see.</p>
+
+        <div class="input-group">
+          <label>Van photo</label>
+          <input type="file" id="vp-van-photo" accept="image/*"/>
+          <img id="vp-van-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
+        </div>
+
+        <div class="input-group">
+          <label>Menu photo</label>
+          <input type="file" id="vp-menu-photo" accept="image/*"/>
+          <img id="vp-menu-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
+        </div>
+
+        <div class="input-group">
+          <label>Payment methods accepted</label>
+          <div style="display:flex;gap:16px;font-size:14px">
+            <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-cash"/> Cash</label>
+            <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-card"/> Card</label>
+            <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-contactless"/> Contactless</label>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Short bio</label>
+          <input type="text" id="vp-bio" placeholder="Family-run since 2015, based in Ilford"/>
+        </div>
+
+        <div class="input-group">
+          <label>Operating hours note</label>
+          <input type="text" id="vp-hours" placeholder="Usually out Fri-Sun afternoons"/>
+        </div>
+
+        <div class="input-group">
+          <label>Social media link</label>
+          <input type="text" id="vp-social" placeholder="https://instagram.com/yourvan"/>
+        </div>
+
+        <button class="btn b-amber" id="vp-save-btn" onclick="saveVanProfile()">Save profile</button>
+      </div>
+    </div>
+
     <div id="search-box-wrap" style="display:none;position:absolute;top:62px;left:12px;right:12px;z-index:100;gap:8px">
       <input id="address-search" type="text" placeholder="🔍 Or search an address…" style="flex:1"/>
       <button class="btn b-black small" onclick="useHomeAddress()" style="border-radius:10px;padding:0 14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">🏠 Home</button>
