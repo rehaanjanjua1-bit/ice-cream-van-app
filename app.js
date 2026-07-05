@@ -333,6 +333,7 @@ function initMap(role) {
   }
 
   if (role === 'driver') {
+    updateSoundToggleUI();
     loadRequestsForDriver();
     setInterval(loadRequestsForDriver, 10000);
     loadVans();
@@ -666,7 +667,22 @@ async function loadRequestsForDriver() {
   Object.values(requestMarkers).forEach(m => m.setMap(null));
   requestMarkers = {};
 
-  if (!reqs || reqs.length === 0) return;
+  if (!reqs || reqs.length === 0) {
+    knownRequestIds = new Set();
+    hasLoadedRequestsOnce = true;
+    return;
+  }
+
+  // Play a sound if any request wasn't here on the last check —
+  // but not on the very first load, so drivers don't get a ping
+  // just from opening the app with existing requests already up.
+  const currentIds = new Set(reqs.map(r => r.id));
+  if (hasLoadedRequestsOnce) {
+    const isNew = [...currentIds].some(id => !knownRequestIds.has(id));
+    if (isNew) playPingSound();
+  }
+  knownRequestIds = currentIds;
+  hasLoadedRequestsOnce = true;
 
   const clusters = clusterRequests(reqs);
 
@@ -694,6 +710,48 @@ async function loadRequestsForDriver() {
     });
     requestMarkers[idx] = m;
   });
+}
+
+// ── Sound alert: pings drivers when a new request appears nearby ──
+let knownRequestIds = new Set();
+let hasLoadedRequestsOnce = false;
+
+function isSoundMuted() {
+  return localStorage.getItem('scoop_sound_muted') === 'true';
+}
+
+function toggleSoundMute() {
+  const muted = !isSoundMuted();
+  localStorage.setItem('scoop_sound_muted', muted ? 'true' : 'false');
+  updateSoundToggleUI();
+  toast(muted ? 'Sound alerts off' : 'Sound alerts on');
+}
+
+function updateSoundToggleUI() {
+  const btn = document.getElementById('sound-toggle-btn');
+  if (!btn) return;
+  btn.textContent = isSoundMuted() ? '🔇' : '🔔';
+}
+
+function playPingSound() {
+  if (isSoundMuted()) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
+  } catch (e) {
+    // Some browsers block audio until the user has interacted with the
+    // page at least once — safe to ignore if that's the case.
+  }
 }
 
 async function toggleLive() { if (isLive) { await goOffline(); } else { await goLive(); } }
