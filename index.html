@@ -274,14 +274,14 @@
 
       <div class="input-group">
         <label>Van photo</label>
-        <input type="file" id="vp-van-photo" accept="image/*"/>
+        <input type="file" id="vp-van-photo" accept="image/*" onchange="handlePhotoSelect('van')"/>
         <img id="vp-van-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
         <a href="#" id="vp-van-photo-remove" onclick="removeVanPhoto('van');return false;" style="display:none;font-size:12px;color:#c0392b;margin-top:6px">✕ Remove photo</a>
       </div>
 
       <div class="input-group">
         <label>Menu photo</label>
-        <input type="file" id="vp-menu-photo" accept="image/*"/>
+        <input type="file" id="vp-menu-photo" accept="image/*" onchange="handlePhotoSelect('menu')"/>
         <img id="vp-menu-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
         <a href="#" id="vp-menu-photo-remove" onclick="removeVanPhoto('menu');return false;" style="display:none;font-size:12px;color:#c0392b;margin-top:6px">✕ Remove photo</a>
       </div>
