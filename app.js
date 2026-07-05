@@ -381,10 +381,16 @@ function toggleCustomerView() {
   setMapSize();
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
 async function loadVans() {
   const { data: vans, error } = await sb
     .from('van_locations')
-    .select('id, lat, lng, profiles(van_name)')
+    .select('id, lat, lng, profiles(van_name, van_photo_url, menu_photo_url, payment_cash, payment_card, payment_contactless, bio, hours_note, social_link)')
     .eq('is_live', true);
 
   if (error) { console.error(error); return; }
@@ -393,16 +399,39 @@ async function loadVans() {
   vanMarkers = {};
 
   vans.forEach(v => {
-    const vanName = v.profiles?.van_name || 'Ice Cream Van';
+    const p = v.profiles || {};
+    const vanName = p.van_name || 'Ice Cream Van';
     const marker = new google.maps.Marker({
       position: { lat: v.lat, lng: v.lng },
       map,
       label: { text: '🍦', fontSize: '24px' },
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
     });
-    const info = new google.maps.InfoWindow({
-      content: '<div style="font-family:sans-serif;padding:4px"><strong style="font-size:14px">' + vanName + '</strong><br/><span style="color:#22c55e;font-size:12px">● Live now</span></div>'
-    });
+
+    let content = '<div style="font-family:sans-serif;padding:4px;max-width:220px">';
+    if (p.van_photo_url) {
+      content += '<img src="' + escapeHtml(p.van_photo_url) + '" style="width:100%;border-radius:8px;margin-bottom:6px"/>';
+    }
+    content += '<strong style="font-size:14px">' + escapeHtml(vanName) + '</strong><br/>';
+    content += '<span style="color:#22c55e;font-size:12px">● Live now</span>';
+    if (p.bio) content += '<p style="font-size:12px;color:#555;margin:6px 0 0">' + escapeHtml(p.bio) + '</p>';
+    if (p.hours_note) content += '<p style="font-size:12px;color:#555;margin:4px 0 0">🕐 ' + escapeHtml(p.hours_note) + '</p>';
+
+    const payments = [];
+    if (p.payment_cash) payments.push('Cash');
+    if (p.payment_card) payments.push('Card');
+    if (p.payment_contactless) payments.push('Contactless');
+    if (payments.length) content += '<p style="font-size:12px;color:#555;margin:4px 0 0">💳 ' + payments.join(', ') + '</p>';
+
+    if (p.menu_photo_url) {
+      content += '<a href="' + escapeHtml(p.menu_photo_url) + '" target="_blank" style="display:inline-block;margin-top:6px;font-size:12px;color:#d4a000;font-weight:600">📋 View menu</a><br/>';
+    }
+    if (p.social_link) {
+      content += '<a href="' + escapeHtml(p.social_link) + '" target="_blank" style="display:inline-block;margin-top:4px;font-size:12px;color:#d4a000;font-weight:600">🔗 Follow</a>';
+    }
+    content += '</div>';
+
+    const info = new google.maps.InfoWindow({ content });
     marker.addListener('click', () => info.open(map, marker));
     vanMarkers[v.id] = marker;
   });
@@ -730,7 +759,97 @@ function toggleSoundMute() {
 function updateSoundToggleUI() {
   const btn = document.getElementById('sound-toggle-btn');
   if (!btn) return;
-  btn.textContent = isSoundMuted() ? '🔇' : '🔔';
+  btn.textContent = isSoundMuted() ? '🔇 Sound alerts: off' : '🔔 Sound alerts: on';
+}
+
+// ── Driver settings menu ──
+function toggleDriverSettingsMenu() {
+  const menu = document.getElementById('driver-settings-menu');
+  if (!menu) return;
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Van profile editing ──
+function openVanProfileEditor() {
+  const menu = document.getElementById('driver-settings-menu');
+  if (menu) menu.style.display = 'none';
+  showScreen('s-van-profile');
+  loadVanProfileIntoEditor();
+}
+
+function closeVanProfileEditor() {
+  showScreen('s-app');
+}
+
+async function loadVanProfileIntoEditor() {
+  const user = userSession.user;
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  if (!profile) return;
+
+  document.getElementById('vp-pay-cash').checked = profile.payment_cash ?? true;
+  document.getElementById('vp-pay-card').checked = profile.payment_card ?? false;
+  document.getElementById('vp-pay-contactless').checked = profile.payment_contactless ?? false;
+  document.getElementById('vp-bio').value = profile.bio || '';
+  document.getElementById('vp-hours').value = profile.hours_note || '';
+  document.getElementById('vp-social').value = profile.social_link || '';
+
+  const vanImg = document.getElementById('vp-van-photo-preview');
+  if (profile.van_photo_url) { vanImg.src = profile.van_photo_url; vanImg.style.display = 'block'; }
+  else { vanImg.style.display = 'none'; }
+
+  const menuImg = document.getElementById('vp-menu-photo-preview');
+  if (profile.menu_photo_url) { menuImg.src = profile.menu_photo_url; menuImg.style.display = 'block'; }
+  else { menuImg.style.display = 'none'; }
+}
+
+async function uploadVanImage(fileInputId, folder) {
+  const input = document.getElementById(fileInputId);
+  const file = input.files[0];
+  if (!file) return null;
+
+  const user = userSession.user;
+  const path = folder + '/' + user.id + '-' + Date.now() + '-' + file.name;
+  const { error } = await sb.storage.from('van-photos').upload(path, file, { upsert: true });
+  if (error) {
+    toast('Photo upload error: ' + error.message);
+    return null;
+  }
+  const { data } = sb.storage.from('van-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function saveVanProfile() {
+  const btn = document.getElementById('vp-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const user = userSession.user;
+  const update = {
+    payment_cash: document.getElementById('vp-pay-cash').checked,
+    payment_card: document.getElementById('vp-pay-card').checked,
+    payment_contactless: document.getElementById('vp-pay-contactless').checked,
+    bio: document.getElementById('vp-bio').value.trim() || null,
+    hours_note: document.getElementById('vp-hours').value.trim() || null,
+    social_link: document.getElementById('vp-social').value.trim() || null
+  };
+
+  const vanPhotoUrl = await uploadVanImage('vp-van-photo', 'vans');
+  if (vanPhotoUrl) update.van_photo_url = vanPhotoUrl;
+
+  const menuPhotoUrl = await uploadVanImage('vp-menu-photo', 'menus');
+  if (menuPhotoUrl) update.menu_photo_url = menuPhotoUrl;
+
+  const { error } = await sb.from('profiles').update(update).eq('id', user.id);
+
+  btn.disabled = false;
+  btn.textContent = 'Save profile';
+
+  if (error) {
+    toast('Error saving: ' + error.message);
+  } else {
+    toast('Van profile saved 🍦');
+    closeVanProfileEditor();
+  }
 }
 
 function playPingSound() {
