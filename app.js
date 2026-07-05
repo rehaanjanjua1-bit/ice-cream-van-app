@@ -207,6 +207,11 @@ sb.auth.onAuthStateChange((event, session) => {
       return;
     }
 
+    // Supabase fires this periodically in the background just to keep the
+    // session alive — it's not a fresh login, so it shouldn't yank the
+    // user away from whatever screen they're currently on.
+    if (event === 'TOKEN_REFRESHED') return;
+
     const user = session.user;
     let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
 
