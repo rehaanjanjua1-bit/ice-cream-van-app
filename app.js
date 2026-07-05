@@ -742,7 +742,7 @@ function playPingSound() {
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.type = 'sine';
+      osc.type = 'square';
       osc.frequency.setValueAtTime(880, startTime);
       osc.frequency.setValueAtTime(1100, startTime + 0.2);
       gain.gain.setValueAtTime(0, startTime);
@@ -752,10 +752,12 @@ function playPingSound() {
       osc.start(startTime);
       osc.stop(startTime + duration);
     };
+    const toneDuration = 1.3;
+    const gap = 0.55;
     const now = ctx.currentTime;
-    playOneTone(now, 1.2);
-    playOneTone(now + 1.9, 1.2);
-    playOneTone(now + 3.8, 1.2);
+    playOneTone(now, toneDuration);
+    playOneTone(now + toneDuration + gap, toneDuration);
+    playOneTone(now + (toneDuration + gap) * 2, toneDuration);
   } catch (e) {
     // Some browsers block audio until the user has interacted with the
     // page at least once — safe to ignore if that's the case.
