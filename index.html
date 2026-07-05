@@ -243,53 +243,7 @@
       </div>
     </div>
 
-    <div id="s-van-profile" class="screen">
-      <div class="auth-body">
-        <button class="back-btn" onclick="closeVanProfileEditor()">← Back</button>
-        <h2>Edit van profile</h2>
-        <p class="auth-sub">Everything here is optional — fill in what you'd like customers to see.</p>
 
-        <div class="input-group">
-          <label>Van photo</label>
-          <input type="file" id="vp-van-photo" accept="image/*"/>
-          <img id="vp-van-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
-        </div>
-
-        <div class="input-group">
-          <label>Menu photo</label>
-          <input type="file" id="vp-menu-photo" accept="image/*"/>
-          <img id="vp-menu-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
-        </div>
-
-        <div class="input-group">
-          <label>Payment methods accepted</label>
-          <div style="display:flex;gap:16px;font-size:14px">
-            <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-cash"/> Cash</label>
-            <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-card"/> Card</label>
-            <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-contactless"/> Contactless</label>
-          </div>
-        </div>
-
-        <div class="input-group">
-          <label>Short bio</label>
-          <input type="text" id="vp-bio" placeholder="Family-run since 2015, based in Ilford"/>
-        </div>
-
-        <div class="input-group">
-          <label>Operating hours note</label>
-          <input type="text" id="vp-hours" placeholder="Usually out Fri-Sun afternoons"/>
-        </div>
-
-        <div class="input-group">
-          <label>Social media link</label>
-          <input type="text" id="vp-social" placeholder="https://instagram.com/yourvan"/>
-        </div>
-
-        <button class="btn b-amber" id="vp-save-btn" onclick="saveVanProfile()">Save profile</button>
-      </div>
-    </div>
-
-    <div id="search-box-wrap" style="display:none;position:absolute;top:62px;left:12px;right:12px;z-index:100;gap:8px">
       <input id="address-search" type="text" placeholder="🔍 Or search an address…" style="flex:1"/>
       <button class="btn b-black small" onclick="useHomeAddress()" style="border-radius:10px;padding:0 14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">🏠 Home</button>
     </div>
@@ -309,6 +263,52 @@
     <div id="customer-panel" class="info-bar" style="display:none">
       <span id="van-count-label">Loading vans…</span>
       <button class="btn b-outline small" onclick="refreshMap()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div id="s-van-profile" class="screen">
+    <div class="auth-body">
+      <button class="back-btn" onclick="closeVanProfileEditor()">← Back</button>
+      <h2>Edit van profile</h2>
+      <p class="auth-sub">Everything here is optional — fill in what you'd like customers to see.</p>
+
+      <div class="input-group">
+        <label>Van photo</label>
+        <input type="file" id="vp-van-photo" accept="image/*"/>
+        <img id="vp-van-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
+      </div>
+
+      <div class="input-group">
+        <label>Menu photo</label>
+        <input type="file" id="vp-menu-photo" accept="image/*"/>
+        <img id="vp-menu-photo-preview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px"/>
+      </div>
+
+      <div class="input-group">
+        <label>Payment methods accepted</label>
+        <div style="display:flex;gap:16px;font-size:14px">
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-cash"/> Cash</label>
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-card"/> Card</label>
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="vp-pay-contactless"/> Contactless</label>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Short bio</label>
+        <input type="text" id="vp-bio" placeholder="Family-run since 2015, based in Ilford"/>
+      </div>
+
+      <div class="input-group">
+        <label>Operating hours note</label>
+        <input type="text" id="vp-hours" placeholder="Usually out Fri-Sun afternoons"/>
+      </div>
+
+      <div class="input-group">
+        <label>Social media link</label>
+        <input type="text" id="vp-social" placeholder="https://instagram.com/yourvan"/>
+      </div>
+
+      <button class="btn b-amber" id="vp-save-btn" onclick="saveVanProfile()">Save profile</button>
     </div>
   </div>
     <div id="toast" class="toast"></div>
