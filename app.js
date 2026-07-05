@@ -737,7 +737,7 @@ function playPingSound() {
   if (isSoundMuted()) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const playOneTone = (startTime) => {
+    const playOneTone = (startTime, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -745,15 +745,17 @@ function playPingSound() {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, startTime);
       osc.frequency.setValueAtTime(1100, startTime + 0.2);
-      gain.gain.setValueAtTime(0.7, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.7);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(1.0, startTime + 0.05);
+      gain.gain.setValueAtTime(1.0, startTime + duration - 0.15);
+      gain.gain.linearRampToValueAtTime(0, startTime + duration);
       osc.start(startTime);
-      osc.stop(startTime + 0.7);
+      osc.stop(startTime + duration);
     };
     const now = ctx.currentTime;
-    playOneTone(now);
-    playOneTone(now + 0.85);
-    playOneTone(now + 1.7);
+    playOneTone(now, 1.2);
+    playOneTone(now + 1.9, 1.2);
+    playOneTone(now + 3.8, 1.2);
   } catch (e) {
     // Some browsers block audio until the user has interacted with the
     // page at least once — safe to ignore if that's the case.
