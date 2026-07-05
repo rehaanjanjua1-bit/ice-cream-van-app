@@ -791,6 +791,21 @@ function closeVanProfileEditor() {
 
 let pendingPhotoRemoval = { van: false, menu: false };
 
+// Shows an instant preview of a chosen photo before it's uploaded/saved,
+// with the option to back out and remove it right away.
+function handlePhotoSelect(type) {
+  const input = document.getElementById('vp-' + type + '-photo');
+  const file = input.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('vp-' + type + '-photo-preview');
+  const removeLink = document.getElementById('vp-' + type + '-photo-remove');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  removeLink.style.display = 'inline-block';
+  pendingPhotoRemoval[type] = false;
+}
+
 async function loadVanProfileIntoEditor() {
   const user = userSession.user;
   const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
