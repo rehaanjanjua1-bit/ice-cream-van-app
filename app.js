@@ -15,6 +15,8 @@ let vanMarkers = {}, requestMarkers = {}, demandCircles = [];
 let myRequestMarker = null, hasActiveRequest = false;
 let locationWatchId = null;
 let googleMapsReady = false;
+let myLat = null, myLng = null;
+const NEARBY_RADIUS_KM = 30; // vans/requests further than this are hidden from the map
 let pendingMapInit = false;
 
 function showScreen(id) {
@@ -44,7 +46,7 @@ function setType(type) {
   const isDriver = type === 'driver';
   document.getElementById('van-field').style.display = isDriver ? 'block' : 'none';
   document.getElementById('driver-price-box').style.display = isDriver ? 'block' : 'none';
-  document.getElementById('su-sub').textContent = isDriver ? 'Put your van on the map for £1.99/month.' : 'Free forever — find vans near you.';
+  document.getElementById('su-sub').textContent = isDriver ? '£1.99/month — your van live on the map, ratings, and your own profile page.' : 'Find ice cream vans near you.';
   document.getElementById('tt-c').className = 'ttab' + (isDriver ? '' : ' active');
   document.getElementById('tt-d').className = 'ttab' + (isDriver ? ' active' : '');
   window._signupType = type;
@@ -334,6 +336,8 @@ function initMap(role) {
     navigator.geolocation.getCurrentPosition(pos => {
       map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       map.setZoom(13);
+      myLat = pos.coords.latitude;
+      myLng = pos.coords.longitude;
     });
   }
 
@@ -346,7 +350,6 @@ function initMap(role) {
   } else {
     loadVans();
     setInterval(loadVans, 5000);
-    loadRequestMarkers();
     checkExistingRequest();
     setupAddressSearch();
   }
@@ -480,12 +483,18 @@ async function rateVan(vanId, rating) {
 }
 
 async function loadVans() {
-  const { data: vans, error } = await sb
+  const { data: rawVans, error } = await sb
     .from('van_locations')
     .select('id, lat, lng, profiles(van_name, van_photo_url, menu_photo_url, payment_cash, payment_card, payment_contactless, bio, hours_note, instagram_link, tiktok_link)')
     .eq('is_live', true);
 
   if (error) { console.error(error); return; }
+
+  // Only show vans within a sensible distance — otherwise a driver/customer
+  // in London would see vans live in Manchester or Birmingham too.
+  const vans = (myLat != null)
+    ? rawVans.filter(v => distanceMeters(myLat, myLng, v.lat, v.lng) / 1000 <= NEARBY_RADIUS_KM)
+    : rawVans;
 
   Object.values(vanMarkers).forEach(m => m.setMap(null));
   vanMarkers = {};
@@ -654,13 +663,35 @@ async function requestVanHere() {
   });
 }
 
+// Checks whether a real address/place exists near this pin, using Google's
+// own reverse geocoding — catches wildly invalid spots like open ocean.
+// Fails "open" (allows the request) if geocoding itself is unavailable,
+// so a Google API hiccup never blocks a genuine customer.
+function reverseGeocodeHasAddress(lat, lng) {
+  return new Promise((resolve) => {
+    if (!window.google || !google.maps.Geocoder) { resolve(true); return; }
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      resolve(status === 'OK' && results && results.length > 0);
+    });
+  });
+}
+
 async function confirmRequest() {
   const btn = document.getElementById('request-van-btn');
   btn.disabled = true;
 
+  const pos = myRequestMarker.getPosition();
+
+  const looksReal = await reverseGeocodeHasAddress(pos.lat(), pos.lng());
+  if (!looksReal) {
+    toast("That spot doesn't look like a real address — try somewhere else nearby.");
+    updateRequestButton();
+    return;
+  }
+
   cleanupExpiredRequests();
 
-  const pos = myRequestMarker.getPosition();
   const { error } = await sb.from('van_requests').upsert({
     lat: pos.lat(),
     lng: pos.lng(),
@@ -780,9 +811,9 @@ function clusterRequests(reqs, radiusMeters = 40) {
 
 // Green = low demand, amber = medium, red = high.
 function demandStyle(count) {
-  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 55 };
-  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 45 };
-  return { fill: '#22c55e', stroke: '#15803d', radius: 30 };
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 250 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 180 };
+  return { fill: '#22c55e', stroke: '#15803d', radius: 120 };
 }
 
 // Actually removes expired request rows from the database, instead of
@@ -800,7 +831,13 @@ async function loadRequestsForDriver() {
   cleanupExpiredRequests();
 
   const since = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // last 30 min only
-  const { data: reqs } = await sb.from('van_requests').select('*').gte('created_at', since);
+  const { data: rawReqs } = await sb.from('van_requests').select('*').gte('created_at', since);
+
+  // Only show requests within a sensible distance of this driver —
+  // otherwise a driver in London would see demand in Manchester too.
+  const reqs = (rawReqs && myLat != null)
+    ? rawReqs.filter(r => distanceMeters(myLat, myLng, r.lat, r.lng) / 1000 <= NEARBY_RADIUS_KM)
+    : rawReqs;
 
   demandCircles.forEach(c => c.setMap(null));
   demandCircles = [];
