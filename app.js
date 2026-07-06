@@ -672,7 +672,12 @@ function reverseGeocodeHasAddress(lat, lng) {
     if (!window.google || !google.maps.Geocoder) { resolve(true); return; }
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      resolve(status === 'OK' && results && results.length > 0);
+      // Only block when Google explicitly found nothing there at all.
+      // Any other status (API key restrictions, rate limits, network
+      // issues, etc.) allows the request through rather than blocking
+      // a genuine customer over an unrelated API problem.
+      if (status === 'ZERO_RESULTS') { resolve(false); return; }
+      resolve(true);
     });
   });
 }
