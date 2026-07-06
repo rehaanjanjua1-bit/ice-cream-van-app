@@ -73,9 +73,37 @@
     .toast.show { opacity: 1; }
     #address-search { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #ddd; font-size: 14px; outline: none; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     #address-search:focus { border-color: #FFC300; }
+
+    /* Dark mode overrides — toggled via body.dark-mode class */
+    body.dark-mode { background: #17171a; color: #f0f0f0; }
+    body.dark-mode .splash-sub { color: #aaa; }
+    body.dark-mode .b-outline { background: #232326; border-color: #3a3a3d; color: #ddd; }
+    body.dark-mode .b-google { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
+    body.dark-mode .auth-sub { color: #aaa; }
+    body.dark-mode .input-group label { color: #ccc; }
+    body.dark-mode .input-group input { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
+    body.dark-mode .price-box { background: #2a2410; border-color: #FFC300; color: #ddd; }
+    body.dark-mode .switch-link { color: #aaa; }
+    body.dark-mode .success-body p { color: #aaa; }
+    body.dark-mode .role-picker p { color: #aaa; }
+    body.dark-mode .role-card { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
+    body.dark-mode .role-card .rc-sub { color: #aaa; }
+    body.dark-mode .role-card.driver-card { background: #2a2410; }
+    body.dark-mode .driver-controls { background: #1e1e21; border-color: #333; }
+    body.dark-mode #map { background: #2a2a2d; }
+    body.dark-mode .info-bar { background: #1e1e21; border-color: #333; color: #ccc; }
+    body.dark-mode #address-search { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
+    body.dark-mode .auth-body h2 { color: #f0f0f0; }
   </style>
 </head>
 <body>
+  <script>
+    // Applied immediately on page load (before most content paints) to
+    // avoid a light-mode flash for people who have dark mode saved.
+    if (localStorage.getItem('scoop_dark_mode') === 'true') {
+      document.body.classList.add('dark-mode');
+    }
+  </script>
 <div id="app">
 
   <div id="s-splash" class="screen show">
@@ -228,6 +256,7 @@
         <span class="app-user" id="app-username"></span>
         <span id="driver-badge" class="badge-driver" style="display:none">🚐 Driver</span>
         <button id="toggle-view-btn" class="logout-btn" style="display:none" onclick="toggleCustomerView()">🍦 Browse as customer</button>
+        <button class="logout-btn" onclick="openAccountSettings()" title="Account settings">⚙</button>
         <button class="logout-btn" onclick="doLogout()">Log out</button>
       </div>
     </div>
@@ -325,6 +354,60 @@
       <button class="btn b-amber" id="vp-save-btn" onclick="saveVanProfile()">Save profile</button>
     </div>
   </div>
+
+  <div id="s-account-settings" class="screen">
+    <div class="auth-body">
+      <button class="back-btn" onclick="closeAccountSettings()">← Back</button>
+      <h2>Account settings</h2>
+      <p class="auth-sub">Manage your contact info, security, and appearance.</p>
+
+      <div class="input-group">
+        <label>Phone number (optional)</label>
+        <input type="tel" id="acc-phone" placeholder="07123 456789"/>
+      </div>
+      <button class="btn b-outline small" style="width:auto" onclick="savePhoneNumber()">Save phone number</button>
+
+      <div style="height:1px;background:#eee;margin:28px 0"></div>
+
+      <h2 style="font-size:18px">Two-factor authentication</h2>
+      <p class="auth-sub" style="margin-bottom:12px">Adds an extra code from an authenticator app (like Google Authenticator or Authy) when you log in.</p>
+      <div id="mfa-status-off">
+        <button class="btn b-amber" style="width:auto" onclick="startMFAEnrollment()">Enable 2FA</button>
+      </div>
+      <div id="mfa-status-on" style="display:none">
+        <p style="font-size:13px;color:#22c55e;font-weight:600;margin-bottom:10px">✓ 2FA is enabled on your account</p>
+        <button class="btn b-outline small" style="width:auto" onclick="disableMFA()">Disable 2FA</button>
+      </div>
+      <div id="mfa-enroll-box" style="display:none;margin-top:16px">
+        <p style="font-size:13px;color:#555;margin-bottom:10px">Scan this QR code with your authenticator app, then enter the 6-digit code it shows:</p>
+        <img id="mfa-qr-code" style="max-width:200px;display:block;margin-bottom:12px"/>
+        <div class="input-group">
+          <input type="text" id="mfa-verify-code" placeholder="6-digit code" maxlength="6"/>
+        </div>
+        <button class="btn b-amber small" style="width:auto" onclick="confirmMFAEnrollment()">Verify and enable</button>
+      </div>
+
+      <div style="height:1px;background:#eee;margin:28px 0"></div>
+
+      <h2 style="font-size:18px">Appearance</h2>
+      <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;cursor:pointer">
+        <input type="checkbox" id="acc-dark-mode-toggle" onchange="toggleDarkModeSetting()"/> Dark mode
+      </label>
+    </div>
+  </div>
+
+  <div id="s-mfa-challenge" class="screen">
+    <div class="auth-body">
+      <h2>Enter your 2FA code</h2>
+      <p class="auth-sub">Open your authenticator app and enter the current 6-digit code.</p>
+      <div class="input-group">
+        <input type="text" id="mfa-challenge-code" placeholder="6-digit code" maxlength="6"/>
+      </div>
+      <button class="btn b-amber" id="mfa-challenge-btn" onclick="submitMFAChallenge()">Verify</button>
+      <p style="margin-top:20px"><a href="#" onclick="doLogout()" style="font-size:13px;color:#888">Log out instead</a></p>
+    </div>
+  </div>
+
     <div id="toast" class="toast"></div>
 </div>
 
