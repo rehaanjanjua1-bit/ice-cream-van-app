@@ -214,28 +214,151 @@ sb.auth.onAuthStateChange((event, session) => {
     // user away from whatever screen they're currently on.
     if (event === 'TOKEN_REFRESHED') return;
 
-    const user = session.user;
-    let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
-
-    if (!profile) {
-      const intendedRole = localStorage.getItem('scoop_intended_role');
-      showScreen('s-role');
-      if (intendedRole === 'driver') setTimeout(() => showVanNameInput(), 100);
+    // If this account has 2FA enabled and this session hasn't completed
+    // that extra step yet, stop here and ask for the code first.
+    const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.currentLevel === 'aal1' && aal.nextLevel === 'aal2') {
+      showScreen('s-mfa-challenge');
       return;
     }
 
-    localStorage.removeItem('scoop_intended_role');
-    userRole = profile.role;
-    userVanId = user.id;
-
-    if (userRole === 'driver' && !profile.subscribed) {
-      showScreen('s-stripe');
-      return;
-    }
-
-    openApp(user, profile);
+    await proceedAfterAuth(session);
   }, 0);
 });
+
+async function proceedAfterAuth(session) {
+  const user = session.user;
+  let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+
+  if (!profile) {
+    const intendedRole = localStorage.getItem('scoop_intended_role');
+    showScreen('s-role');
+    if (intendedRole === 'driver') setTimeout(() => showVanNameInput(), 100);
+    return;
+  }
+
+  localStorage.removeItem('scoop_intended_role');
+  userRole = profile.role;
+  userVanId = user.id;
+
+  if (userRole === 'driver' && !profile.subscribed) {
+    showScreen('s-stripe');
+    return;
+  }
+
+  openApp(user, profile);
+}
+
+// ── 2FA challenge at login time ──
+async function submitMFAChallenge() {
+  const code = document.getElementById('mfa-challenge-code').value.trim();
+  if (!code || code.length !== 6) { toast('Enter the 6-digit code.'); return; }
+
+  const btn = document.getElementById('mfa-challenge-btn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+
+  const { data: factors } = await sb.auth.mfa.listFactors();
+  const factor = factors?.totp?.[0];
+  if (!factor) {
+    toast('No 2FA method found on this account.');
+    btn.disabled = false; btn.textContent = 'Verify';
+    return;
+  }
+
+  const { data: challenge, error: challengeError } = await sb.auth.mfa.challenge({ factorId: factor.id });
+  if (challengeError) {
+    toast('Error: ' + challengeError.message);
+    btn.disabled = false; btn.textContent = 'Verify';
+    return;
+  }
+
+  const { error: verifyError } = await sb.auth.mfa.verify({ factorId: factor.id, challengeId: challenge.id, code });
+  btn.disabled = false;
+  btn.textContent = 'Verify';
+
+  if (verifyError) {
+    toast('Incorrect code — try again.');
+    return;
+  }
+
+  toast('Verified!');
+  await proceedAfterAuth(userSession);
+}
+
+// ── Account settings: phone, 2FA setup, dark mode ──
+function openAccountSettings() {
+  showScreen('s-account-settings');
+  loadAccountSettingsIntoEditor();
+}
+
+function closeAccountSettings() {
+  showScreen('s-app');
+}
+
+async function loadAccountSettingsIntoEditor() {
+  const user = userSession.user;
+  const { data: profile } = await sb.from('profiles').select('phone').eq('id', user.id).single();
+  document.getElementById('acc-phone').value = (profile && profile.phone) || '';
+
+  const { data: factors } = await sb.auth.mfa.listFactors();
+  const hasMfa = factors && factors.totp && factors.totp.length > 0;
+  document.getElementById('mfa-status-off').style.display = hasMfa ? 'none' : 'block';
+  document.getElementById('mfa-status-on').style.display = hasMfa ? 'block' : 'none';
+  document.getElementById('mfa-enroll-box').style.display = 'none';
+
+  document.getElementById('acc-dark-mode-toggle').checked = document.body.classList.contains('dark-mode');
+}
+
+async function savePhoneNumber() {
+  const phone = document.getElementById('acc-phone').value.trim();
+  const { error } = await sb.from('profiles').update({ phone: phone || null }).eq('id', userSession.user.id);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Phone number saved.');
+}
+
+async function startMFAEnrollment() {
+  const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp' });
+  if (error) { toast('Error: ' + error.message); return; }
+  window._pendingMfaFactorId = data.id;
+  document.getElementById('mfa-qr-code').src = data.totp.qr_code;
+  document.getElementById('mfa-enroll-box').style.display = 'block';
+}
+
+async function confirmMFAEnrollment() {
+  const code = document.getElementById('mfa-verify-code').value.trim();
+  if (!code || code.length !== 6) { toast('Enter the 6-digit code from your app.'); return; }
+  const factorId = window._pendingMfaFactorId;
+  if (!factorId) { toast('Please start enrollment again.'); return; }
+
+  const { data: challenge, error: challengeError } = await sb.auth.mfa.challenge({ factorId });
+  if (challengeError) { toast('Error: ' + challengeError.message); return; }
+
+  const { error: verifyError } = await sb.auth.mfa.verify({ factorId, challengeId: challenge.id, code });
+  if (verifyError) { toast('Incorrect code — try again.'); return; }
+
+  toast('2FA enabled! 🎉');
+  document.getElementById('mfa-enroll-box').style.display = 'none';
+  document.getElementById('mfa-status-off').style.display = 'none';
+  document.getElementById('mfa-status-on').style.display = 'block';
+}
+
+async function disableMFA() {
+  const { data: factors } = await sb.auth.mfa.listFactors();
+  const factor = factors && factors.totp && factors.totp[0];
+  if (!factor) return;
+  const { error } = await sb.auth.mfa.unenroll({ factorId: factor.id });
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('2FA disabled.');
+  document.getElementById('mfa-status-on').style.display = 'none';
+  document.getElementById('mfa-status-off').style.display = 'block';
+}
+
+function toggleDarkModeSetting() {
+  const enabled = document.getElementById('acc-dark-mode-toggle').checked;
+  document.body.classList.toggle('dark-mode', enabled);
+  localStorage.setItem('scoop_dark_mode', enabled ? 'true' : 'false');
+}
 
 function redirectToStripe() {
   window.location.href = STRIPE_PAYMENT_LINK + '?client_reference_id=' + userSession.user.id;
