@@ -256,7 +256,15 @@
         <span class="app-user" id="app-username"></span>
         <span id="driver-badge" class="badge-driver" style="display:none">🚐 Driver</span>
         <button id="toggle-view-btn" class="logout-btn" style="display:none" onclick="toggleCustomerView()">🍦 Browse as customer</button>
-        <button class="logout-btn" onclick="openAccountSettings()" title="Account settings">⚙</button>
+        <div style="position:relative">
+          <button class="logout-btn" onclick="toggleDriverSettingsMenu()">⚙</button>
+          <div id="driver-settings-menu" style="display:none;position:absolute;top:36px;right:0;background:#fff;border:1px solid #eee;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:2000;width:200px;overflow:hidden">
+            <a href="#" id="menu-item-van-profile" onclick="openVanProfileEditor();return false;" style="display:none;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">📋 Edit van profile</a>
+            <a href="#" id="menu-item-subscription" onclick="manageSubscription();return false;" style="display:none;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">💳 Manage subscription</a>
+            <a href="#" id="sound-toggle-btn" onclick="toggleSoundMute();return false;" style="display:none;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">🔔 Sound alerts: on</a>
+            <a href="#" onclick="openAccountSettings();return false;" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none">👤 Account settings</a>
+          </div>
+        </div>
         <button class="logout-btn" onclick="doLogout()">Log out</button>
       </div>
     </div>
@@ -266,14 +274,6 @@
           <strong id="van-display-name"></strong>
           <span id="live-status" class="status-dot offline"></span>
           <span id="live-label" style="font-size:13px;color:#666">Offline</span>
-        </div>
-        <div style="position:relative">
-          <button class="btn b-outline small" onclick="toggleDriverSettingsMenu()" style="margin-right:8px;width:auto;padding:8px 12px">⚙</button>
-          <div id="driver-settings-menu" style="display:none;position:absolute;top:40px;right:8px;background:#fff;border:1px solid #eee;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:2000;width:200px;overflow:hidden">
-            <a href="#" onclick="openVanProfileEditor();return false;" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">📋 Edit van profile</a>
-            <a href="#" onclick="manageSubscription();return false;" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none;border-bottom:1px solid #f2f2f2">💳 Manage subscription</a>
-            <a href="#" onclick="toggleSoundMute();return false;" id="sound-toggle-btn" style="display:block;padding:12px 16px;font-size:14px;color:#1a1a1a;text-decoration:none">🔔 Sound alerts: on</a>
-          </div>
         </div>
         <button class="btn b-amber small" id="go-live-btn" onclick="toggleLive()">Go Live 🟢</button>
       </div>
@@ -359,7 +359,7 @@
     <div class="auth-body">
       <button class="back-btn" onclick="closeAccountSettings()">← Back</button>
       <h2>Account settings</h2>
-      <p class="auth-sub">Manage your contact info, security, and appearance.</p>
+      <p class="auth-sub">Manage your contact info and appearance.</p>
 
       <div class="input-group">
         <label>Phone number (optional)</label>
@@ -369,42 +369,10 @@
 
       <div style="height:1px;background:#eee;margin:28px 0"></div>
 
-      <h2 style="font-size:18px">Two-factor authentication</h2>
-      <p class="auth-sub" style="margin-bottom:12px">Adds an extra code from an authenticator app (like Google Authenticator or Authy) when you log in.</p>
-      <div id="mfa-status-off">
-        <button class="btn b-amber" style="width:auto" onclick="startMFAEnrollment()">Enable 2FA</button>
-      </div>
-      <div id="mfa-status-on" style="display:none">
-        <p style="font-size:13px;color:#22c55e;font-weight:600;margin-bottom:10px">✓ 2FA is enabled on your account</p>
-        <button class="btn b-outline small" style="width:auto" onclick="disableMFA()">Disable 2FA</button>
-      </div>
-      <div id="mfa-enroll-box" style="display:none;margin-top:16px">
-        <p style="font-size:13px;color:#555;margin-bottom:10px">Scan this QR code with your authenticator app, then enter the 6-digit code it shows:</p>
-        <img id="mfa-qr-code" style="max-width:200px;display:block;margin-bottom:12px"/>
-        <div class="input-group">
-          <input type="text" id="mfa-verify-code" placeholder="6-digit code" maxlength="6"/>
-        </div>
-        <button class="btn b-amber small" style="width:auto" onclick="confirmMFAEnrollment()">Verify and enable</button>
-      </div>
-
-      <div style="height:1px;background:#eee;margin:28px 0"></div>
-
       <h2 style="font-size:18px">Appearance</h2>
       <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;cursor:pointer">
         <input type="checkbox" id="acc-dark-mode-toggle" onchange="toggleDarkModeSetting()"/> Dark mode
       </label>
-    </div>
-  </div>
-
-  <div id="s-mfa-challenge" class="screen">
-    <div class="auth-body">
-      <h2>Enter your 2FA code</h2>
-      <p class="auth-sub">Open your authenticator app and enter the current 6-digit code.</p>
-      <div class="input-group">
-        <input type="text" id="mfa-challenge-code" placeholder="6-digit code" maxlength="6"/>
-      </div>
-      <button class="btn b-amber" id="mfa-challenge-btn" onclick="submitMFAChallenge()">Verify</button>
-      <p style="margin-top:20px"><a href="#" onclick="doLogout()" style="font-size:13px;color:#888">Log out instead</a></p>
     </div>
   </div>
 
