@@ -237,7 +237,7 @@ sb.auth.onAuthStateChange((event, session) => {
   }, 0);
 });
 
-// ── Account settings: phone number + dark mode ──
+// ── Account settings: phone number ──
 function openAccountSettings() {
   const menu = document.getElementById('driver-settings-menu');
   if (menu) menu.style.display = 'none';
@@ -253,7 +253,6 @@ async function loadAccountSettingsIntoEditor() {
   const user = userSession.user;
   const { data: profile } = await sb.from('profiles').select('phone').eq('id', user.id).single();
   document.getElementById('acc-phone').value = (profile && profile.phone) || '';
-  document.getElementById('acc-dark-mode-toggle').checked = document.body.classList.contains('dark-mode');
 }
 
 async function savePhoneNumber() {
@@ -261,12 +260,6 @@ async function savePhoneNumber() {
   const { error } = await sb.from('profiles').update({ phone: phone || null }).eq('id', userSession.user.id);
   if (error) { toast('Error: ' + error.message); return; }
   toast('Phone number saved.');
-}
-
-function toggleDarkModeSetting() {
-  const enabled = document.getElementById('acc-dark-mode-toggle').checked;
-  document.body.classList.toggle('dark-mode', enabled);
-  localStorage.setItem('scoop_dark_mode', enabled ? 'true' : 'false');
 }
 
 function redirectToStripe() {
