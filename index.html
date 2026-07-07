@@ -73,37 +73,9 @@
     .toast.show { opacity: 1; }
     #address-search { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #ddd; font-size: 14px; outline: none; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     #address-search:focus { border-color: #FFC300; }
-
-    /* Dark mode overrides — toggled via body.dark-mode class */
-    body.dark-mode { background: #17171a; color: #f0f0f0; }
-    body.dark-mode .splash-sub { color: #aaa; }
-    body.dark-mode .b-outline { background: #232326; border-color: #3a3a3d; color: #ddd; }
-    body.dark-mode .b-google { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
-    body.dark-mode .auth-sub { color: #aaa; }
-    body.dark-mode .input-group label { color: #ccc; }
-    body.dark-mode .input-group input { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
-    body.dark-mode .price-box { background: #2a2410; border-color: #FFC300; color: #ddd; }
-    body.dark-mode .switch-link { color: #aaa; }
-    body.dark-mode .success-body p { color: #aaa; }
-    body.dark-mode .role-picker p { color: #aaa; }
-    body.dark-mode .role-card { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
-    body.dark-mode .role-card .rc-sub { color: #aaa; }
-    body.dark-mode .role-card.driver-card { background: #2a2410; }
-    body.dark-mode .driver-controls { background: #1e1e21; border-color: #333; }
-    body.dark-mode #map { background: #2a2a2d; }
-    body.dark-mode .info-bar { background: #1e1e21; border-color: #333; color: #ccc; }
-    body.dark-mode #address-search { background: #232326; border-color: #3a3a3d; color: #f0f0f0; }
-    body.dark-mode .auth-body h2 { color: #f0f0f0; }
   </style>
 </head>
 <body>
-  <script>
-    // Applied immediately on page load (before most content paints) to
-    // avoid a light-mode flash for people who have dark mode saved.
-    if (localStorage.getItem('scoop_dark_mode') === 'true') {
-      document.body.classList.add('dark-mode');
-    }
-  </script>
 <div id="app">
 
   <div id="s-splash" class="screen show">
@@ -366,13 +338,6 @@
         <input type="tel" id="acc-phone" placeholder="07123 456789"/>
       </div>
       <button class="btn b-outline small" style="width:auto" onclick="savePhoneNumber()">Save phone number</button>
-
-      <div style="height:1px;background:#eee;margin:28px 0"></div>
-
-      <h2 style="font-size:18px">Appearance</h2>
-      <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;cursor:pointer">
-        <input type="checkbox" id="acc-dark-mode-toggle" onchange="toggleDarkModeSetting()"/> Dark mode
-      </label>
     </div>
   </div>
 
