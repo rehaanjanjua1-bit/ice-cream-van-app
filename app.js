@@ -694,52 +694,11 @@ async function requestVanHere() {
   });
 }
 
-// Checks whether a real, specific address exists near this pin — not
-// just "did Google return anything at all". Open water, and even open
-// farmland, often still return a vague result (e.g. "North Sea", the
-// center of a wide rural postcode area), so this requires both:
-//  1. A street/locality-level result type (rules out vague area/water matches)
-//  2. A precise match ("ROOFTOP" or "RANGE_INTERPOLATED" — tied to an
-//     actual road or building), not just "GEOMETRIC_CENTER"/"APPROXIMATE"
-//     (the vague, wide-area kind of match a random empty field gets)
-// Fails "open" (allows the request) for any API-level problem (key
-// restrictions, rate limits, network issues) — only a genuine, specific
-// "no real place here" blocks the request.
-const REAL_PLACE_TYPES = ['street_address', 'route', 'premise', 'subpremise', 'postal_code', 'locality', 'sublocality', 'neighborhood'];
-const PRECISE_MATCH_TYPES = ['ROOFTOP', 'RANGE_INTERPOLATED'];
-
-function reverseGeocodeHasAddress(lat, lng) {
-  return new Promise((resolve) => {
-    if (!window.google || !google.maps.Geocoder) { resolve(true); return; }
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status !== 'OK') {
-        // Only block on a genuine "nothing found" — any other status
-        // (API issues) allows the request through.
-        resolve(status !== 'ZERO_RESULTS');
-        return;
-      }
-      const looksReal = results.some(r =>
-        r.types.some(t => REAL_PLACE_TYPES.includes(t)) &&
-        PRECISE_MATCH_TYPES.includes(r.geometry.location_type)
-      );
-      resolve(looksReal);
-    });
-  });
-}
-
 async function confirmRequest() {
   const btn = document.getElementById('request-van-btn');
   btn.disabled = true;
 
   const pos = myRequestMarker.getPosition();
-
-  const looksReal = await reverseGeocodeHasAddress(pos.lat(), pos.lng());
-  if (!looksReal) {
-    toast("That spot doesn't look like a real address — try somewhere else nearby.");
-    updateRequestButton();
-    return;
-  }
 
   cleanupExpiredRequests();
 
