@@ -694,21 +694,29 @@ async function requestVanHere() {
   });
 }
 
-// Checks whether a real address/place exists near this pin, using Google's
-// own reverse geocoding — catches wildly invalid spots like open ocean.
-// Fails "open" (allows the request) if geocoding itself is unavailable,
-// so a Google API hiccup never blocks a genuine customer.
+// Checks whether a real, specific address exists near this pin — not
+// just "did Google return anything at all". Open water and empty areas
+// often still return a vague result (e.g. "North Sea", a country
+// boundary, or a plus code), so we specifically require a street-level
+// or locality-level match, which those vague results don't have.
+// Fails "open" (allows the request) for any API-level problem (key
+// restrictions, rate limits, network issues) — only a genuine, specific
+// "no real place here" blocks the request.
+const REAL_PLACE_TYPES = ['street_address', 'route', 'premise', 'subpremise', 'postal_code', 'locality', 'sublocality', 'neighborhood'];
+
 function reverseGeocodeHasAddress(lat, lng) {
   return new Promise((resolve) => {
     if (!window.google || !google.maps.Geocoder) { resolve(true); return; }
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      // Only block when Google explicitly found nothing there at all.
-      // Any other status (API key restrictions, rate limits, network
-      // issues, etc.) allows the request through rather than blocking
-      // a genuine customer over an unrelated API problem.
-      if (status === 'ZERO_RESULTS') { resolve(false); return; }
-      resolve(true);
+      if (status !== 'OK') {
+        // Only block on a genuine "nothing found" — any other status
+        // (API issues) allows the request through.
+        resolve(status !== 'ZERO_RESULTS');
+        return;
+      }
+      const looksReal = results.some(r => r.types.some(t => REAL_PLACE_TYPES.includes(t)));
+      resolve(looksReal);
     });
   });
 }
