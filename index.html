@@ -57,7 +57,7 @@
     /* APP LAYOUT */
     #s-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
     #s-app.show { display: block; }
-    .app-header { position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #FFC300; z-index: 500; }
+    .app-header { position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #FFC300; z-index: 10; }
     .app-logo { font-size: 18px; font-weight: 800; }
     .app-header-right { display: flex; align-items: center; gap: 10px; }
     .app-user { font-size: 13px; font-weight: 600; }
@@ -251,7 +251,7 @@
       </div>
     </div>
 
-    <div id="search-box-wrap" style="display:none;position:absolute;top:62px;left:12px;right:12px;z-index:100;gap:8px">
+    <div id="search-box-wrap" style="display:none;position:absolute;top:62px;left:12px;width:75%;max-width:380px;z-index:100;gap:8px">
       <input id="address-search" type="text" placeholder="🔍 Or search an address…" style="flex:1"/>
       <button class="btn b-black small" onclick="useHomeAddress()" style="border-radius:10px;padding:0 14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">🏠 Home</button>
     </div>
