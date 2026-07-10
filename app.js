@@ -11,7 +11,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   }
 });
 let map, userSession, userRole, userVanId, isLive = false;
-let vanMarkers = {}, requestMarkers = {};
+let vanMarkers = {}, requestMarkers = {}, demandCircles = [];
 let myRequestMarker = null, hasActiveRequest = false;
 let locationWatchId = null;
 let googleMapsReady = false;
@@ -820,17 +820,10 @@ function clusterRequests(reqs, radiusMeters = 40) {
 }
 
 // Green = low demand, amber = medium, red = high.
-// These render as Marker icons, not geo-anchored Circles — Marker icon
-// "scale" is always a fixed pixel size in Google Maps, regardless of
-// zoom level, which is exactly what a UI indicator like this needs.
-// (An earlier version used Circle with a real-world meter radius, which
-// necessarily grows/shrinks with zoom since it represents an actual
-// geographic area — no way to keep that visually constant without the
-// circle's real duty which is inherently zoom relative.)
 function demandStyle(count) {
-  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', pixelRadius: 26 };
-  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', pixelRadius: 20 };
-  return { fill: '#22c55e', stroke: '#15803d', pixelRadius: 15 };
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 55 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 45 };
+  return { fill: '#22c55e', stroke: '#15803d', radius: 30 };
 }
 
 // Actually removes expired request rows from the database, instead of
@@ -856,6 +849,8 @@ async function loadRequestsForDriver() {
     ? rawReqs.filter(r => distanceMeters(myLat, myLng, r.lat, r.lng) / 1000 <= NEARBY_RADIUS_KM)
     : rawReqs;
 
+  demandCircles.forEach(c => c.setMap(null));
+  demandCircles = [];
   Object.values(requestMarkers).forEach(m => m.setMap(null));
   requestMarkers = {};
 
@@ -880,21 +875,24 @@ async function loadRequestsForDriver() {
 
   clusters.forEach((c, idx) => {
     const style = demandStyle(c.count);
-    const label = c.count > 1 ? '🙋×' + c.count : '🙋';
 
+    demandCircles.push(new google.maps.Circle({
+      center: { lat: c.lat, lng: c.lng },
+      radius: style.radius,
+      map,
+      fillColor: style.fill,
+      fillOpacity: 0.35,
+      strokeColor: style.stroke,
+      strokeOpacity: 0.85,
+      strokeWeight: 2
+    }));
+
+    const label = c.count > 1 ? '🙋×' + c.count : '🙋';
     const m = new google.maps.Marker({
       position: { lat: c.lat, lng: c.lng },
       map,
-      label: { text: label, fontSize: '13px', fontWeight: '700', color: '#1a1a1a' },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: style.pixelRadius,
-        fillColor: style.fill,
-        fillOpacity: 0.55,
-        strokeColor: style.stroke,
-        strokeOpacity: 0.9,
-        strokeWeight: 2
-      },
+      label: { text: label, fontSize: '15px', fontWeight: '700' },
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
       title: c.count === 1 ? 'Customer wants ice cream here!' : c.count + ' customers waiting here!'
     });
     requestMarkers[idx] = m;
