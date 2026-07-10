@@ -11,7 +11,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   }
 });
 let map, userSession, userRole, userVanId, isLive = false;
-let vanMarkers = {}, requestMarkers = {}, demandCircles = [];
+let vanMarkers = {}, requestMarkers = {};
 let myRequestMarker = null, hasActiveRequest = false;
 let locationWatchId = null;
 let googleMapsReady = false;
@@ -378,7 +378,6 @@ function initMap(role) {
     setInterval(loadRequestsForDriver, 10000);
     loadVans();
     setInterval(loadVans, 5000);
-    map.addListener('idle', rescaleDemandCircles);
   } else {
     loadVans();
     setInterval(loadVans, 5000);
@@ -821,38 +820,17 @@ function clusterRequests(reqs, radiusMeters = 40) {
 }
 
 // Green = low demand, amber = medium, red = high.
-// Target on-screen size (in pixels) for each demand tier — kept roughly
-// consistent across zoom levels, rather than a fixed real-world size
-// which looks tiny zoomed out and huge zoomed in.
+// These render as Marker icons, not geo-anchored Circles — Marker icon
+// "scale" is always a fixed pixel size in Google Maps, regardless of
+// zoom level, which is exactly what a UI indicator like this needs.
+// (An earlier version used Circle with a real-world meter radius, which
+// necessarily grows/shrinks with zoom since it represents an actual
+// geographic area — no way to keep that visually constant without the
+// circle's real duty which is inherently zoom relative.)
 function demandStyle(count) {
-  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', pixelRadius: 40 };
-  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', pixelRadius: 30 };
-  return { fill: '#22c55e', stroke: '#15803d', pixelRadius: 22 };
-}
-
-// Converts a desired on-screen pixel radius into the real-world meter
-// radius needed to achieve that, for a given latitude and zoom level.
-// The zoom is clamped to a sane range (city-to-street level) — without
-// this, the underlying math breaks down at extreme zoom-out (viewing
-// a whole country), which was producing wildly oversized circles.
-function pixelRadiusToMeters(pixelRadius, lat, zoom) {
-  const clampedZoom = Math.max(11, Math.min(zoom, 18));
-  const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, clampedZoom);
-  return pixelRadius * metersPerPixel;
-}
-
-// Recalculates every visible demand circle's radius so it keeps looking
-// a sensible size as the driver zooms. Hooked to the map's 'idle' event
-// (fires once after a zoom/pan gesture finishes) rather than
-// 'zoom_changed' (fires continuously mid-gesture) — recalculating
-// continuously during the zoom animation was causing visible flicker.
-function rescaleDemandCircles() {
-  if (!map) return;
-  const zoom = map.getZoom();
-  demandCircles.forEach(c => {
-    const meters = pixelRadiusToMeters(c.__pixelRadius, c.getCenter().lat(), zoom);
-    c.setRadius(meters);
-  });
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', pixelRadius: 26 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', pixelRadius: 20 };
+  return { fill: '#22c55e', stroke: '#15803d', pixelRadius: 15 };
 }
 
 // Actually removes expired request rows from the database, instead of
@@ -878,8 +856,6 @@ async function loadRequestsForDriver() {
     ? rawReqs.filter(r => distanceMeters(myLat, myLng, r.lat, r.lng) / 1000 <= NEARBY_RADIUS_KM)
     : rawReqs;
 
-  demandCircles.forEach(c => c.setMap(null));
-  demandCircles = [];
   Object.values(requestMarkers).forEach(m => m.setMap(null));
   requestMarkers = {};
 
@@ -901,31 +877,24 @@ async function loadRequestsForDriver() {
   hasLoadedRequestsOnce = true;
 
   const clusters = clusterRequests(reqs);
-  const zoom = map.getZoom();
 
   clusters.forEach((c, idx) => {
     const style = demandStyle(c.count);
-    const meters = pixelRadiusToMeters(style.pixelRadius, c.lat, zoom);
-
-    const circle = new google.maps.Circle({
-      center: { lat: c.lat, lng: c.lng },
-      radius: meters,
-      map,
-      fillColor: style.fill,
-      fillOpacity: 0.35,
-      strokeColor: style.stroke,
-      strokeOpacity: 0.85,
-      strokeWeight: 2
-    });
-    circle.__pixelRadius = style.pixelRadius;
-    demandCircles.push(circle);
-
     const label = c.count > 1 ? '🙋×' + c.count : '🙋';
+
     const m = new google.maps.Marker({
       position: { lat: c.lat, lng: c.lng },
       map,
-      label: { text: label, fontSize: '15px', fontWeight: '700' },
-      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+      label: { text: label, fontSize: '13px', fontWeight: '700', color: '#1a1a1a' },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: style.pixelRadius,
+        fillColor: style.fill,
+        fillOpacity: 0.55,
+        strokeColor: style.stroke,
+        strokeOpacity: 0.9,
+        strokeWeight: 2
+      },
       title: c.count === 1 ? 'Customer wants ice cream here!' : c.count + ' customers waiting here!'
     });
     requestMarkers[idx] = m;
