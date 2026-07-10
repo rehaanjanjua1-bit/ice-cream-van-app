@@ -378,6 +378,7 @@ function initMap(role) {
     setInterval(loadRequestsForDriver, 10000);
     loadVans();
     setInterval(loadVans, 5000);
+    map.addListener('idle', rescaleDemandCircles);
   } else {
     loadVans();
     setInterval(loadVans, 5000);
@@ -820,17 +821,38 @@ function clusterRequests(reqs, radiusMeters = 40) {
 }
 
 // Green = low demand, amber = medium, red = high.
-// Base on-screen size (in pixels) for each demand tier — this is what
-// stays visually consistent, unlike a fixed meter radius which looks
-// Fixed real-world radius per demand tier — deliberately a middle
-// ground between "too tiny to see zoomed out" and "huge covering
-// several streets zoomed in". Not perfect at every possible zoom level,
-// but stable and predictable, unlike the zoom-reactive version which
-// had rendering bugs at extreme zoom levels.
+// Target on-screen size (in pixels) for each demand tier — kept roughly
+// consistent across zoom levels, rather than a fixed real-world size
+// which looks tiny zoomed out and huge zoomed in.
 function demandStyle(count) {
-  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 90 };
-  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 65 };
-  return { fill: '#22c55e', stroke: '#15803d', radius: 45 };
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', pixelRadius: 40 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', pixelRadius: 30 };
+  return { fill: '#22c55e', stroke: '#15803d', pixelRadius: 22 };
+}
+
+// Converts a desired on-screen pixel radius into the real-world meter
+// radius needed to achieve that, for a given latitude and zoom level.
+// The zoom is clamped to a sane range (city-to-street level) — without
+// this, the underlying math breaks down at extreme zoom-out (viewing
+// a whole country), which was producing wildly oversized circles.
+function pixelRadiusToMeters(pixelRadius, lat, zoom) {
+  const clampedZoom = Math.max(11, Math.min(zoom, 18));
+  const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, clampedZoom);
+  return pixelRadius * metersPerPixel;
+}
+
+// Recalculates every visible demand circle's radius so it keeps looking
+// a sensible size as the driver zooms. Hooked to the map's 'idle' event
+// (fires once after a zoom/pan gesture finishes) rather than
+// 'zoom_changed' (fires continuously mid-gesture) — recalculating
+// continuously during the zoom animation was causing visible flicker.
+function rescaleDemandCircles() {
+  if (!map) return;
+  const zoom = map.getZoom();
+  demandCircles.forEach(c => {
+    const meters = pixelRadiusToMeters(c.__pixelRadius, c.getCenter().lat(), zoom);
+    c.setRadius(meters);
+  });
 }
 
 // Actually removes expired request rows from the database, instead of
@@ -879,20 +901,24 @@ async function loadRequestsForDriver() {
   hasLoadedRequestsOnce = true;
 
   const clusters = clusterRequests(reqs);
+  const zoom = map.getZoom();
 
   clusters.forEach((c, idx) => {
     const style = demandStyle(c.count);
+    const meters = pixelRadiusToMeters(style.pixelRadius, c.lat, zoom);
 
-    demandCircles.push(new google.maps.Circle({
+    const circle = new google.maps.Circle({
       center: { lat: c.lat, lng: c.lng },
-      radius: style.radius,
+      radius: meters,
       map,
       fillColor: style.fill,
       fillOpacity: 0.35,
       strokeColor: style.stroke,
       strokeOpacity: 0.85,
       strokeWeight: 2
-    }));
+    });
+    circle.__pixelRadius = style.pixelRadius;
+    demandCircles.push(circle);
 
     const label = c.count > 1 ? '🙋×' + c.count : '🙋';
     const m = new google.maps.Marker({
