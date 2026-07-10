@@ -821,9 +821,9 @@ function clusterRequests(reqs, radiusMeters = 40) {
 
 // Green = low demand, amber = medium, red = high.
 function demandStyle(count) {
-  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 250 };
-  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 180 };
-  return { fill: '#22c55e', stroke: '#15803d', radius: 120 };
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 400 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 300 };
+  return { fill: '#22c55e', stroke: '#15803d', radius: 200 };
 }
 
 // Actually removes expired request rows from the database, instead of
