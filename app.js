@@ -378,7 +378,6 @@ function initMap(role) {
     setInterval(loadRequestsForDriver, 10000);
     loadVans();
     setInterval(loadVans, 5000);
-    map.addListener('zoom_changed', rescaleDemandCircles);
   } else {
     loadVans();
     setInterval(loadVans, 5000);
@@ -823,32 +822,15 @@ function clusterRequests(reqs, radiusMeters = 40) {
 // Green = low demand, amber = medium, red = high.
 // Base on-screen size (in pixels) for each demand tier — this is what
 // stays visually consistent, unlike a fixed meter radius which looks
-// tiny zoomed out and huge zoomed in.
+// Fixed real-world radius per demand tier — deliberately a middle
+// ground between "too tiny to see zoomed out" and "huge covering
+// several streets zoomed in". Not perfect at every possible zoom level,
+// but stable and predictable, unlike the zoom-reactive version which
+// had rendering bugs at extreme zoom levels.
 function demandStyle(count) {
-  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', pixelRadius: 45 };
-  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', pixelRadius: 34 };
-  return { fill: '#22c55e', stroke: '#15803d', pixelRadius: 24 };
-}
-
-// Converts a desired on-screen pixel radius into the real-world meter
-// radius needed to achieve that, for a given latitude and zoom level —
-// this is what keeps demand circles a sensible, consistent size whether
-// the driver is zoomed way out or zoomed right in on a street.
-function pixelRadiusToMeters(pixelRadius, lat, zoom) {
-  const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
-  return pixelRadius * metersPerPixel;
-}
-
-// Recalculates every visible demand circle's real-world radius so it
-// keeps looking the same size on screen as the driver zooms in/out —
-// called live on 'zoom_changed', not just on the next data refresh.
-function rescaleDemandCircles() {
-  if (!map) return;
-  const zoom = map.getZoom();
-  demandCircles.forEach(c => {
-    const meters = pixelRadiusToMeters(c.__pixelRadius, c.getCenter().lat(), zoom);
-    c.setRadius(meters);
-  });
+  if (count >= 3) return { fill: '#ef4444', stroke: '#b91c1c', radius: 90 };
+  if (count >= 2) return { fill: '#f59e0b', stroke: '#b45309', radius: 65 };
+  return { fill: '#22c55e', stroke: '#15803d', radius: 45 };
 }
 
 // Actually removes expired request rows from the database, instead of
@@ -897,24 +879,20 @@ async function loadRequestsForDriver() {
   hasLoadedRequestsOnce = true;
 
   const clusters = clusterRequests(reqs);
-  const zoom = map.getZoom();
 
   clusters.forEach((c, idx) => {
     const style = demandStyle(c.count);
-    const meters = pixelRadiusToMeters(style.pixelRadius, c.lat, zoom);
 
-    const circle = new google.maps.Circle({
+    demandCircles.push(new google.maps.Circle({
       center: { lat: c.lat, lng: c.lng },
-      radius: meters,
+      radius: style.radius,
       map,
       fillColor: style.fill,
       fillOpacity: 0.35,
       strokeColor: style.stroke,
       strokeOpacity: 0.85,
       strokeWeight: 2
-    });
-    circle.__pixelRadius = style.pixelRadius;
-    demandCircles.push(circle);
+    }));
 
     const label = c.count > 1 ? '🙋×' + c.count : '🙋';
     const m = new google.maps.Marker({
