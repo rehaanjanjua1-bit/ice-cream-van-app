@@ -586,6 +586,11 @@ function setupAddressSearch() {
   if (!input || !window.google || !google.maps.places) return;
   const autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry'] });
   autocomplete.addListener('place_changed', () => {
+    if (myLat == null) {
+      toast('Please enable location access to request a van — this keeps requests to real, nearby places.');
+      input.value = '';
+      return;
+    }
     const place = autocomplete.getPlace();
     if (!place.geometry) { toast('Please choose an address from the list.'); return; }
     const lat = place.geometry.location.lat();
@@ -658,6 +663,10 @@ async function saveAsHome() {
 }
 
 async function useHomeAddress() {
+  if (myLat == null) {
+    toast('Please enable location access to request a van — this keeps requests to real, nearby places.');
+    return;
+  }
   const { data: profile } = await sb.from('profiles').select('home_lat, home_lng').eq('id', userSession.user.id).single();
   if (!profile || profile.home_lat == null || profile.home_lng == null) {
     toast('No home address saved yet — place a pin, then tap "Save as home".');
@@ -693,10 +702,12 @@ async function requestVanHere() {
   }
 
   navigator.geolocation.getCurrentPosition((pos) => {
+    myLat = pos.coords.latitude;
+    myLng = pos.coords.longitude;
     showPreviewPin(pos.coords.latitude, pos.coords.longitude);
     map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
   }, () => {
-    toast('Could not get your location. Check permissions.');
+    toast('Could not get your location. Please enable location access to request a van.');
     updateRequestButton();
   });
 }
