@@ -620,9 +620,19 @@ function showPreviewPin(lat, lng) {
     // If a request is already saved, keep it in sync as they drag.
     if (hasActiveRequest) {
       const pos = myRequestMarker.getPosition();
+
+      if (myLat != null) {
+        const distance = distanceMeters(myLat, myLng, pos.lat(), pos.lng());
+        if (distance > ONE_MILE_METERS) {
+          toast('You can only request a van within 1 mile of your current location.');
+          return;
+        }
+      }
+
+      const fuzzed = fuzzLocation(pos.lat(), pos.lng());
       await sb.from('van_requests').upsert({
-        lat: pos.lat(),
-        lng: pos.lng(),
+        lat: fuzzed.lat,
+        lng: fuzzed.lng,
         user_id: userSession.user.id,
         created_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
@@ -683,16 +693,15 @@ async function requestVanHere() {
   }
 
   navigator.geolocation.getCurrentPosition((pos) => {
-    // Fuzz the GPS location slightly (~20m) for privacy. Once dropped,
-    // the customer can drag the pin to the exact spot before confirming.
-    const { lat, lng } = fuzzLocation(pos.coords.latitude, pos.coords.longitude);
-    showPreviewPin(lat, lng);
-    map.setCenter({ lat, lng });
+    showPreviewPin(pos.coords.latitude, pos.coords.longitude);
+    map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
   }, () => {
     toast('Could not get your location. Check permissions.');
     updateRequestButton();
   });
 }
+
+const ONE_MILE_METERS = 1609;
 
 async function confirmRequest() {
   const btn = document.getElementById('request-van-btn');
@@ -700,11 +709,32 @@ async function confirmRequest() {
 
   const pos = myRequestMarker.getPosition();
 
+  // Only requests within 1 mile of where the customer actually is get
+  // through. This also naturally rules out unrealistic spots (open
+  // water, motorways far from anywhere) without needing to guess what
+  // counts as a "real address" — if it's genuinely near the customer,
+  // it's a real place they can plausibly be. If we don't know their
+  // location (permission denied, unsupported), this check is skipped
+  // rather than blocking a genuine customer who can't be verified.
+  if (myLat != null) {
+    const distance = distanceMeters(myLat, myLng, pos.lat(), pos.lng());
+    if (distance > ONE_MILE_METERS) {
+      toast('You can only request a van within 1 mile of your current location.');
+      updateRequestButton();
+      return;
+    }
+  }
+
   cleanupExpiredRequests();
 
+  // Fuzz the saved location for privacy — this is what drivers see, so
+  // it should never reveal a customer's literal exact address, no
+  // matter how the pin was positioned (GPS, dragged, searched, or Home).
+  const fuzzed = fuzzLocation(pos.lat(), pos.lng());
+
   const { error } = await sb.from('van_requests').upsert({
-    lat: pos.lat(),
-    lng: pos.lng(),
+    lat: fuzzed.lat,
+    lng: fuzzed.lng,
     user_id: userSession.user.id,
     created_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
@@ -1110,7 +1140,7 @@ async function goLive() {
         await sb.from('van_locations').update({ lat: p.coords.latitude, lng: p.coords.longitude, updated_at: new Date().toISOString() }).eq('id', userVanId);
         if (vanMarkers[userVanId]) vanMarkers[userVanId].setPosition({ lat: p.coords.latitude, lng: p.coords.longitude });
       });
-    }, 15000);
+    }, 30000);
     if (vanMarkers[userVanId]) vanMarkers[userVanId].setMap(null);
     const marker = new google.maps.Marker({ position: { lat, lng }, map, label: { text: '🚐', fontSize: '24px' }, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 } });
     vanMarkers[userVanId] = marker;
